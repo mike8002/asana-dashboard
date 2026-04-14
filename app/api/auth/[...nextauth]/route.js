@@ -12,8 +12,7 @@ const handler = NextAuth({
     signIn: '/login',
   },
   callbacks: {
-    // Optional: restrict to specific email domains
-    // Uncomment the lines below to only allow @umww.com emails
+    // Uncomment below to restrict to specific email domains
     // async signIn({ user }) {
     //   return user.email.endsWith('@umww.com');
     // },

@@ -1,17 +1,17 @@
 import { getServerSession } from 'next-auth';
-import { getDashboardData } from '../lib/asana';
+import { fetchAllData } from '../lib/asana';
 import Dashboard from '../components/Dashboard';
 
-export const revalidate = 300; // Refresh data every 5 minutes
+export const revalidate = 172800;
 
 export default async function Home() {
   const session = await getServerSession();
-  
+
   let data = null;
   let error = null;
 
   try {
-    data = await getDashboardData();
+    data = await fetchAllData();
   } catch (e) {
     error = e.message;
   }

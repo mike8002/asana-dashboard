@@ -2,7 +2,7 @@ import './globals.css';
 import AuthProvider from '../components/AuthProvider';
 
 export const metadata = {
-  title: 'Project Hub — Asana Dashboard',
+  title: 'Team Utilisation — Project Hub V3',
   description: 'UM MENAT team dashboard',
 };
 

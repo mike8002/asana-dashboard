@@ -150,17 +150,11 @@ function ThemeToggle() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════
-// REFRESH BUTTON WITH COOLDOWN
-// Checks the /api/refresh GET endpoint on mount to see if
-// there's an active cooldown, displays countdown if so.
-// ═══════════════════════════════════════════════════════════
 function RefreshButton({ userName, selectStyle }) {
   const [state, setState] = useState({ loading: true, locked: false, nextAvailable: null, lastRefreshedBy: null });
   const [pressing, setPressing] = useState(false);
   const [countdown, setCountdown] = useState('');
 
-  // Load cooldown state on mount
   useEffect(() => {
     (async () => {
       try {
@@ -173,7 +167,6 @@ function RefreshButton({ userName, selectStyle }) {
     })();
   }, []);
 
-  // Tick countdown every minute while locked
   useEffect(() => {
     if (!state.locked || !state.nextAvailable) { setCountdown(''); return; }
     const update = () => {
@@ -202,7 +195,6 @@ function RefreshButton({ userName, selectStyle }) {
       });
       const data = await res.json();
       if (res.status === 429) {
-        // someone else just beat us to it
         setState({ loading: false, locked: true, nextAvailable: data.nextAvailable, lastRefreshedBy: data.lastRefreshedBy });
         setPressing(false);
       } else {
@@ -288,31 +280,52 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
 
   const handleClientChange = (e) => { router.push(`/?client=${e.target.value}`); };
 
-  const processed = useMemo(() => {
+  // ═══════════════════════════════════════════════════════════
+  // FILTERED DATA — the key change.
+  // When a specific member is selected, we filter data.tasks
+  // BEFORE running all the aggregations. This means every chart
+  // automatically reflects the selected person's data.
+  // ═══════════════════════════════════════════════════════════
+  const filteredData = useMemo(() => {
     if (!data) return null;
-    const members = getMemberStats(data.tasks);
+    if (filter === 'all') return data;
     return {
-      summary: getSummary(data.tasks), members,
-      timing: getTimingSplit(data.tasks),
-      weekly: getWeeklyTrend(data.tasks),
-      backlog: getBacklogTrend(data.tasks),
-      subtaskSplit: getSubtaskSplit(data.tasks),
-      hubWeekly: getHubWeekly(data.tasks, members),
+      ...data,
+      tasks: data.tasks.filter(t => t.assignee === filter),
+    };
+  }, [data, filter]);
+
+  const processed = useMemo(() => {
+    if (!filteredData) return null;
+    // Note: memberStats uses the FILTERED tasks, so it only contains the selected person
+    const members = getMemberStats(filteredData.tasks);
+    // BUT for the "By Member" tab and filter dropdown, we need the full unfiltered member list
+    const allMembers = getMemberStats(data.tasks);
+
+    return {
+      summary: getSummary(filteredData.tasks),
+      members,
+      allMembers,
+      timing: getTimingSplit(filteredData.tasks),
+      weekly: getWeeklyTrend(filteredData.tasks),
+      backlog: getBacklogTrend(filteredData.tasks),
+      subtaskSplit: getSubtaskSplit(filteredData.tasks),
+      hubWeekly: getHubWeekly(filteredData.tasks, members),
       hubTurnaround: getHubTurnaround(members),
-      heatmap: getHeatmapData(data.tasks),
-      gantt: getGanttData(data.tasks),
-      velocity: getVelocityData(members, data.tasks),
+      heatmap: getHeatmapData(filteredData.tasks),
+      gantt: getGanttData(filteredData.tasks),
+      velocity: getVelocityData(members, filteredData.tasks),
       radarDubai: getRadarScores(members, 'Dubai'),
       radarLebanon: getRadarScores(members, 'Lebanon'),
       composite: getCompositeScore(members),
-      brands: getBrandBreakdown(data.tasks),
-      markets: getMarketBreakdown(data.tasks),
-      campaigns: getCampaignBreakdown(data.tasks),
-      milestones: getMilestones(data.tasks),
-      blocked: getBlockedTasks(data.tasks),
-      budgets: getBudgetSummaries(data.tasks, data.numberFieldNames),
+      brands: getBrandBreakdown(filteredData.tasks),
+      markets: getMarketBreakdown(filteredData.tasks),
+      campaigns: getCampaignBreakdown(filteredData.tasks),
+      milestones: getMilestones(filteredData.tasks),
+      blocked: getBlockedTasks(filteredData.tasks),
+      budgets: getBudgetSummaries(filteredData.tasks, data.numberFieldNames),
     };
-  }, [data]);
+  }, [filteredData, data]);
 
   if (error) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
@@ -329,9 +342,9 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
     </div>
   );
 
-  const { summary, members } = processed;
-  const assignees = members.map(m => m.name).filter(n => n !== 'Unassigned');
-  const filteredTasks = filter === 'all' ? data.tasks : data.tasks.filter(t => t.assignee === filter);
+  const { summary, members, allMembers } = processed;
+  const assignees = allMembers.map(m => m.name).filter(n => n !== 'Unassigned');
+  const isFiltered = filter !== 'all';
 
   const selectStyle = { background: 'var(--surface-2)', border: '1px solid var(--border-strong)', color: 'var(--text-muted)' };
 
@@ -354,7 +367,9 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
           </div>
           <div className="flex items-center gap-3">
             <select value={filter} onChange={e => setFilter(e.target.value)}
-              className="rounded-lg px-3 py-1.5 text-xs focus:outline-none" style={selectStyle}>
+              className="rounded-lg px-3 py-1.5 text-xs focus:outline-none cursor-pointer"
+              style={{ ...selectStyle, color: isFiltered ? 'var(--text)' : 'var(--text-muted)', borderColor: isFiltered ? C.blue : 'var(--border-strong)' }}
+              title="Filter the entire dashboard to a single person's data">
               <option value="all">All members</option>
               {assignees.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
@@ -380,14 +395,38 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
         </div>
       </nav>
 
+      {/* Filter banner — shown when a member is selected */}
+      {isFiltered && (
+        <div className="px-4 py-2" style={{
+          background: 'var(--accent-blue-bg)',
+          borderBottom: '1px solid var(--accent-blue-border)',
+        }}>
+          <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-3">
+            <p className="text-xs" style={{ color: 'var(--accent-blue-text)' }}>
+              <span style={{ fontWeight: 500 }}>Viewing data for {filter} only.</span>
+              <span style={{ marginLeft: 8, opacity: 0.75 }}>All charts below are filtered to this person.</span>
+            </p>
+            <button onClick={() => setFilter('all')}
+              className="text-xs px-2 py-0.5 rounded-md transition-colors"
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--border-strong)',
+                color: 'var(--text-muted)',
+              }}>
+              Clear filter
+            </button>
+          </div>
+        </div>
+      )}
+
       <main className="max-w-[1400px] mx-auto px-4 py-5 space-y-4">
-        {tab === 0 && <TabOverview d={processed} tasks={filteredTasks} C={C} URGENCY_COLORS={URGENCY_COLORS} TT_STYLE={TT_STYLE} />}
-        {tab === 1 && <TabBacklog d={processed} C={C} TT_STYLE={TT_STYLE} />}
+        {tab === 0 && <TabOverview d={processed} C={C} URGENCY_COLORS={URGENCY_COLORS} TT_STYLE={TT_STYLE} isFiltered={isFiltered} />}
+        {tab === 1 && <TabBacklog d={processed} C={C} TT_STYLE={TT_STYLE} isFiltered={isFiltered} />}
         {tab === 2 && <TabOnTime d={processed} C={C} />}
         {tab === 3 && <TabVelocity d={processed} C={C} TT_STYLE={TT_STYLE} />}
         {tab === 4 && <TabMembers d={processed} />}
         {tab === 5 && <TabHubs d={processed} C={C} TT_STYLE={TT_STYLE} />}
-        {tab === 6 && <TabProjects projects={data.projects} funnel={data.funnel} C={C} />}
+        {tab === 6 && <TabProjects projects={data.projects} funnel={data.funnel} filteredFunnel={buildFunnelFromTasks(filteredData.tasks)} isFiltered={isFiltered} C={C} />}
         {tab === 7 && <TabTimeline d={processed} C={C} />}
         {tab === 8 && <TabRadar d={processed} C={C} />}
         {tab === 9 && <TabBreakdowns d={processed} C={C} />}
@@ -402,7 +441,18 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
   );
 }
 
-function TabOverview({ d, tasks, C, URGENCY_COLORS, TT_STYLE }) {
+// Helper to rebuild funnel from filtered tasks
+function buildFunnelFromTasks(tasks) {
+  const map = {};
+  tasks.forEach(t => {
+    if (t.section && t.status !== 'Completed') {
+      map[t.section] = (map[t.section] || 0) + 1;
+    }
+  });
+  return Object.entries(map).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+}
+
+function TabOverview({ d, C, URGENCY_COLORS, TT_STYLE, isFiltered }) {
   const { summary, members, timing, weekly } = d;
   return (
     <>
@@ -415,30 +465,68 @@ function TabOverview({ d, tasks, C, URGENCY_COLORS, TT_STYLE }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Card title="Task load by member" info={INFO.taskLoad}>
-          <div className="space-y-2">
-            {members.filter(m => m.name !== 'Unassigned').slice(0, 10).map(m => {
-              const max = Math.max(1, m.overdue + m.dueSoon + m.upcoming + m.noDate);
-              return (
-                <div key={m.name} className="flex items-center gap-2.5">
-                  <span className="text-xs w-24 text-right truncate" style={{ color: 'var(--text-dim)' }}>{m.name}</span>
-                  <div className="flex-1 flex h-4 rounded overflow-hidden" style={{ background: 'var(--surface-3)' }}>
-                    {m.overdue > 0 && <div style={{ width: `${(m.overdue/max)*100}%`, background: C.red }} />}
-                    {m.dueSoon > 0 && <div style={{ width: `${(m.dueSoon/max)*100}%`, background: C.amber }} />}
-                    {m.upcoming > 0 && <div style={{ width: `${(m.upcoming/max)*100}%`, background: C.blue }} />}
-                    {m.noDate > 0 && <div style={{ width: `${(m.noDate/max)*100}%`, background: C.gray }} />}
+        {!isFiltered && (
+          <Card title="Task load by member" info={INFO.taskLoad}>
+            <div className="space-y-2">
+              {members.filter(m => m.name !== 'Unassigned').slice(0, 10).map(m => {
+                const max = Math.max(1, m.overdue + m.dueSoon + m.upcoming + m.noDate);
+                return (
+                  <div key={m.name} className="flex items-center gap-2.5">
+                    <span className="text-xs w-24 text-right truncate" style={{ color: 'var(--text-dim)' }}>{m.name}</span>
+                    <div className="flex-1 flex h-4 rounded overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+                      {m.overdue > 0 && <div style={{ width: `${(m.overdue/max)*100}%`, background: C.red }} />}
+                      {m.dueSoon > 0 && <div style={{ width: `${(m.dueSoon/max)*100}%`, background: C.amber }} />}
+                      {m.upcoming > 0 && <div style={{ width: `${(m.upcoming/max)*100}%`, background: C.blue }} />}
+                      {m.noDate > 0 && <div style={{ width: `${(m.noDate/max)*100}%`, background: C.gray }} />}
+                    </div>
+                    <span className="text-xs w-8 text-right" style={{ color: 'var(--text-dim)' }}>{m.total - m.completed}</span>
                   </div>
-                  <span className="text-xs w-8 text-right" style={{ color: 'var(--text-dim)' }}>{m.total - m.completed}</span>
-                </div>
-              );
-            })}
-            <div className="flex gap-4 mt-3 text-[10px]" style={{ color: 'var(--text-faint)' }}>
-              {Object.entries(URGENCY_COLORS).map(([k, c]) => (
-                <span key={k} className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: c }} />{k}</span>
-              ))}
+                );
+              })}
+              <div className="flex gap-4 mt-3 text-[10px]" style={{ color: 'var(--text-faint)' }}>
+                {Object.entries(URGENCY_COLORS).map(([k, c]) => (
+                  <span key={k} className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: c }} />{k}</span>
+                ))}
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        )}
+
+        {/* When filtered to one person, show their individual stats card instead */}
+        {isFiltered && members[0] && (
+          <Card title={`${members[0].name} overview`}>
+            <div className="grid grid-cols-4 gap-2 text-center">
+              <div className="rounded-lg p-3" style={{ background: 'var(--surface-4)' }}>
+                <p className="text-xl font-semibold" style={{ color: C.red }}>{members[0].overdue}</p>
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-faint)' }}>Overdue</p>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'var(--surface-4)' }}>
+                <p className="text-xl font-semibold" style={{ color: C.amber }}>{members[0].dueSoon}</p>
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-faint)' }}>Due soon</p>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'var(--surface-4)' }}>
+                <p className="text-xl font-semibold" style={{ color: C.blue }}>{members[0].upcoming}</p>
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-faint)' }}>Upcoming</p>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'var(--surface-4)' }}>
+                <p className="text-xl font-semibold" style={{ color: 'var(--text-dim)' }}>{members[0].noDate}</p>
+                <p className="text-[10px] mt-1" style={{ color: 'var(--text-faint)' }}>No date</p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 space-y-2 text-xs" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-dim)' }}>
+              <div className="flex justify-between"><span>Hub</span><span>{members[0].hub}</span></div>
+              {members[0].onTimeRate !== null && (
+                <div className="flex justify-between"><span>On-time rate</span>
+                  <span style={{ color: members[0].onTimeRate >= 85 ? C.teal : members[0].onTimeRate >= 75 ? C.amber : C.red }}>
+                    {members[0].onTimeRate}%
+                  </span>
+                </div>
+              )}
+              {members[0].avgTurnaround && (<div className="flex justify-between"><span>Avg turnaround</span><span>{members[0].avgTurnaround} days</span></div>)}
+              {members[0].hours > 0 && (<div className="flex justify-between"><span>Hours logged</span><span>{members[0].hours}h</span></div>)}
+            </div>
+          </Card>
+        )}
 
         <Card title="Task timing split" info={INFO.timingSplit}>
           <div className="flex items-center justify-center gap-6">
@@ -476,11 +564,12 @@ function TabOverview({ d, tasks, C, URGENCY_COLORS, TT_STYLE }) {
   );
 }
 
-function TabBacklog({ d, C, TT_STYLE }) {
+function TabBacklog({ d, C, TT_STYLE, isFiltered }) {
   const { backlog, subtaskSplit, members, weekly } = d;
+  const memberCount = isFiltered ? 1 : members.filter(m => m.name !== 'Unassigned').length;
   const capacityData = weekly.map(w => ({
     week: w.week,
-    capacity: members.filter(m => m.name !== 'Unassigned').length * WEEKLY_CAPACITY,
+    capacity: memberCount * WEEKLY_CAPACITY,
     actual: w.completed,
   }));
 
@@ -621,11 +710,12 @@ function TabVelocity({ d, C, TT_STYLE }) {
 }
 
 function TabMembers({ d }) {
-  const { members } = d;
+  // By Member tab always shows ALL members, regardless of filter
+  const { allMembers } = d;
   const C = useChartColors();
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-      {members.filter(m => m.name !== 'Unassigned').map(m => (
+      {allMembers.filter(m => m.name !== 'Unassigned').map(m => (
         <Card key={m.name}>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium"
@@ -711,14 +801,19 @@ function TabHubs({ d, C, TT_STYLE }) {
   );
 }
 
-function TabProjects({ projects, funnel, C }) {
-  const maxFunnel = funnel.length > 0 ? funnel[0].count : 1;
+function TabProjects({ projects, funnel, filteredFunnel, isFiltered, C }) {
+  const funnelData = isFiltered ? filteredFunnel : funnel;
+  const maxFunnel = funnelData.length > 0 ? funnelData[0].count : 1;
   return (
     <>
-      <Card title="Task stage funnel across all projects" info={INFO.funnel}>
-        <div className="space-y-2.5">
-          {funnel.slice(0, 12).map(f => (<HBar key={f.name} name={f.name} value={f.count} max={maxFunnel} color={C.purple} />))}
-        </div>
+      <Card title={isFiltered ? 'Task stages (filtered)' : 'Task stage funnel across all projects'} info={INFO.funnel}>
+        {funnelData.length === 0 ? (
+          <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No sectioned tasks for this view</p>
+        ) : (
+          <div className="space-y-2.5">
+            {funnelData.slice(0, 12).map(f => (<HBar key={f.name} name={f.name} value={f.count} max={maxFunnel} color={C.purple} />))}
+          </div>
+        )}
       </Card>
 
       <Card title="Project health scorecard" info={INFO.projectHealth}>
@@ -827,31 +922,35 @@ function TabTimeline({ d, C }) {
       </Card>
 
       <Card title="Gantt-style task timeline" info={INFO.gantt}>
-        <div className="space-y-1.5">
-          {gantt.map((g, i) => {
-            const startOffset = Math.max(0, Math.ceil((new Date(g.start) - new Date(ganttStart)) / 86400000));
-            const duration = Math.max(1, Math.ceil((new Date(g.end) - new Date(g.start)) / 86400000));
-            const left = (startOffset / ganttRange) * 100;
-            const width = Math.max(2, (duration / ganttRange) * 100);
-            const color = g.status === 'Overdue' ? C.red : C.blue;
+        {gantt.length === 0 ? (
+          <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No upcoming dated tasks</p>
+        ) : (
+          <div className="space-y-1.5">
+            {gantt.map((g, i) => {
+              const startOffset = Math.max(0, Math.ceil((new Date(g.start) - new Date(ganttStart)) / 86400000));
+              const duration = Math.max(1, Math.ceil((new Date(g.end) - new Date(g.start)) / 86400000));
+              const left = (startOffset / ganttRange) * 100;
+              const width = Math.max(2, (duration / ganttRange) * 100);
+              const color = g.status === 'Overdue' ? C.red : C.blue;
 
-            const Bar = (
-              <div className="flex-1 relative h-5 rounded" style={{ background: 'var(--surface-4)' }}>
-                <div className="absolute h-full rounded flex items-center px-1.5"
-                  style={{ left: `${left}%`, width: `${width}%`, background: color, minWidth: 4 }}>
-                  <span className="text-[9px] text-white truncate">{g.name}</span>
+              const Bar = (
+                <div className="flex-1 relative h-5 rounded" style={{ background: 'var(--surface-4)' }}>
+                  <div className="absolute h-full rounded flex items-center px-1.5"
+                    style={{ left: `${left}%`, width: `${width}%`, background: color, minWidth: 4 }}>
+                    <span className="text-[9px] text-white truncate">{g.name}</span>
+                  </div>
                 </div>
-              </div>
-            );
+              );
 
-            return (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-[10px] w-20 text-right truncate" style={{ color: 'var(--text-faint)' }}>{g.assignee}</span>
-                {g.url ? <a href={g.url} target="_blank" rel="noopener noreferrer" className="flex-1">{Bar}</a> : Bar}
-              </div>
-            );
-          })}
-        </div>
+              return (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-[10px] w-20 text-right truncate" style={{ color: 'var(--text-faint)' }}>{g.assignee}</span>
+                  {g.url ? <a href={g.url} target="_blank" rel="noopener noreferrer" className="flex-1">{Bar}</a> : Bar}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
     </>
   );
@@ -872,7 +971,7 @@ function TabRadar({ d, C }) {
                 <Radar name="Dubai" dataKey="score" stroke={C.blue} fill={C.blue} fillOpacity={0.15} strokeWidth={2} />
               </RadarChart>
             </ResponsiveContainer>
-          ) : <p className="text-xs py-10 text-center" style={{ color: 'var(--text-faint)' }}>No Dubai members mapped</p>}
+          ) : <p className="text-xs py-10 text-center" style={{ color: 'var(--text-faint)' }}>No Dubai members in view</p>}
         </Card>
 
         <Card title="Performance radar: Lebanon" info={INFO.radarLebanon}>
@@ -885,7 +984,7 @@ function TabRadar({ d, C }) {
                 <Radar name="Lebanon" dataKey="score" stroke={C.amber} fill={C.amber} fillOpacity={0.15} strokeWidth={2} />
               </RadarChart>
             </ResponsiveContainer>
-          ) : <p className="text-xs py-10 text-center" style={{ color: 'var(--text-faint)' }}>No Lebanon members mapped</p>}
+          ) : <p className="text-xs py-10 text-center" style={{ color: 'var(--text-faint)' }}>No Lebanon members in view</p>}
         </Card>
       </div>
 
@@ -977,7 +1076,7 @@ function TabMilestonesBlockers({ d }) {
     <>
       <Card title={`Upcoming milestones (${milestones.length})`} info={INFO.milestones}>
         {milestones.length === 0 ? (
-          <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No milestone tasks. Mark tasks as milestones in Asana.</p>
+          <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No milestone tasks for this view</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -1015,7 +1114,7 @@ function TabMilestonesBlockers({ d }) {
 
       <Card title={`Blocked tasks (${blocked.length})`} info={INFO.blocked}>
         {blocked.length === 0 ? (
-          <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No blocked tasks, great flow!</p>
+          <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No blocked tasks for this view</p>
         ) : (
           <div className="space-y-3">
             {blocked.map((b, i) => (

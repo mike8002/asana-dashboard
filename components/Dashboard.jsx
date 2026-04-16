@@ -1,5 +1,6 @@
 'use client';
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -24,7 +25,6 @@ const C = {
 
 const URGENCY_COLORS = { Overdue: C.red, 'Due soon': C.amber, Upcoming: C.blue, 'No date': C.gray };
 const RAG = { green: C.teal, amber: C.amber, red: C.red };
-const BRAND_COLORS = [C.purple, C.teal, C.blue, C.amber, C.pink, C.red, '#5DCAA5', '#B5D4F4'];
 
 function Card({ title, children, className = '' }) {
   return (
@@ -82,7 +82,8 @@ const TABS = [
   'Breakdowns', 'Milestones & Blockers',
 ];
 
-export default function Dashboard({ data, error, userName, userImage }) {
+export default function Dashboard({ data, error, userName, userImage, clients, activeClient }) {
+  const router = useRouter();
   const [tab, setTab] = useState(0);
   const [filter, setFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -95,12 +96,16 @@ export default function Dashboard({ data, error, userName, userImage }) {
     } catch (e) { setRefreshing(false); }
   };
 
+  const handleClientChange = (e) => {
+    const newClient = e.target.value;
+    router.push(`/?client=${newClient}`);
+  };
+
   const processed = useMemo(() => {
     if (!data) return null;
     const members = getMemberStats(data.tasks);
     return {
-      summary: getSummary(data.tasks),
-      members,
+      summary: getSummary(data.tasks), members,
       timing: getTimingSplit(data.tasks),
       weekly: getWeeklyTrend(data.tasks),
       backlog: getBacklogTrend(data.tasks),
@@ -143,10 +148,19 @@ export default function Dashboard({ data, error, userName, userImage }) {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-neutral-300">
       <header className="border-b border-[#1c1c1c] px-4 py-3 sticky top-0 z-30 bg-[#0a0a0a]/95 backdrop-blur">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
+        <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <span className="text-base font-semibold text-white tracking-tight">Team Utilisation</span>
-            <span className="text-[11px] text-neutral-600">Project Hub</span>
+            <span className="w-px h-4 bg-[#262626]"></span>
+            <select
+              value={activeClient.id}
+              onChange={handleClientChange}
+              className="bg-[#141414] border border-[#262626] rounded-lg px-3 py-1.5 text-xs font-medium text-white focus:outline-none cursor-pointer hover:border-[#333]"
+            >
+              {clients.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
             <span className="text-[10px] bg-emerald-950/50 text-emerald-400 border border-emerald-800/30 px-2 py-0.5 rounded-full">Live</span>
           </div>
           <div className="flex items-center gap-3">
@@ -192,7 +206,7 @@ export default function Dashboard({ data, error, userName, userImage }) {
         {tab === 10 && <TabMilestonesBlockers d={processed} />}
 
         <p className="text-[11px] text-neutral-700 text-center pt-2 pb-4">
-          Last synced {new Date(data.fetchedAt).toLocaleString()} · Cache refreshes every 2 days
+          {activeClient.name} · Last synced {new Date(data.fetchedAt).toLocaleString()} · Cache refreshes every 2 days
         </p>
       </main>
     </div>
@@ -299,11 +313,6 @@ function TabBacklog({ d }) {
             <Line type="monotone" dataKey="backlog" stroke={C.red} strokeWidth={2} dot={false} name="Open backlog" />
           </LineChart>
         </ResponsiveContainer>
-        <div className="flex gap-5 mt-2 text-[10px] text-neutral-600">
-          <span className="flex items-center gap-1"><span className="w-3 h-0.5" style={{ background: C.amber }} />Created</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-0.5" style={{ background: C.teal }} />Completed</span>
-          <span className="flex items-center gap-1"><span className="w-3 h-0.5" style={{ background: C.red }} />Open backlog</span>
-        </div>
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -371,24 +380,18 @@ function TabOnTime({ d }) {
         {rated.length === 0 ? (
           <p className="text-xs text-neutral-600 py-4 text-center">No data available</p>
         ) : (
-          <>
-            <div className="space-y-2.5">
-              {rated.map(m => (
-                <div key={m.name} className="flex items-center gap-2.5">
-                  <span className="text-xs text-neutral-500 w-24 text-right truncate">{m.name}</span>
-                  <div className="flex-1 flex h-4 rounded overflow-hidden bg-[#1a1a1a]">
-                    <div style={{ width: `${(m.onTimeCount / maxOnTimeLate) * 100}%`, background: C.teal }} />
-                    <div style={{ width: `${(m.lateCount / maxOnTimeLate) * 100}%`, background: C.red }} />
-                  </div>
-                  <span className="text-xs text-neutral-500 w-16 text-right">{m.onTimeCount}✓ {m.lateCount}✗</span>
+          <div className="space-y-2.5">
+            {rated.map(m => (
+              <div key={m.name} className="flex items-center gap-2.5">
+                <span className="text-xs text-neutral-500 w-24 text-right truncate">{m.name}</span>
+                <div className="flex-1 flex h-4 rounded overflow-hidden bg-[#1a1a1a]">
+                  <div style={{ width: `${(m.onTimeCount / maxOnTimeLate) * 100}%`, background: C.teal }} />
+                  <div style={{ width: `${(m.lateCount / maxOnTimeLate) * 100}%`, background: C.red }} />
                 </div>
-              ))}
-            </div>
-            <div className="flex gap-4 mt-3 text-[10px] text-neutral-600">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: C.teal }} />On-time</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: C.red }} />Late</span>
-            </div>
-          </>
+                <span className="text-xs text-neutral-500 w-16 text-right">{m.onTimeCount}✓ {m.lateCount}✗</span>
+              </div>
+            ))}
+          </div>
         )}
       </Card>
     </>
@@ -431,13 +434,6 @@ function TabVelocity({ d }) {
             ))}
           </LineChart>
         </ResponsiveContainer>
-        <div className="flex flex-wrap gap-3 mt-2 text-[10px] text-neutral-600">
-          {memberNames.map((name, i) => (
-            <span key={name} className="flex items-center gap-1">
-              <span className="w-3 h-0.5" style={{ background: lineColors[i % lineColors.length] }} />{name}
-            </span>
-          ))}
-        </div>
       </Card>
     </>
   );
@@ -602,7 +598,6 @@ function TabTimeline({ d }) {
   return (
     <>
       <Card title="Workload heatmap — tasks due per day">
-        <p className="text-[11px] text-neutral-600 mb-3">Darker green = more tasks due that day</p>
         <div className="space-y-1">
           {weeks.map((week, wi) => (
             <div key={wi} className="flex gap-1">
@@ -632,7 +627,6 @@ function TabTimeline({ d }) {
       </Card>
 
       <Card title="Gantt-style task timeline">
-        <p className="text-[11px] text-neutral-600 mb-3">Click a bar to open the task in Asana</p>
         <div className="space-y-1.5">
           {gantt.map((g, i) => {
             const startOffset = Math.max(0, Math.ceil((new Date(g.start) - new Date(ganttStart)) / 86400000));
@@ -644,7 +638,6 @@ function TabTimeline({ d }) {
             const Bar = (
               <div className="flex-1 relative h-5 bg-[#0e0e0e] rounded">
                 <div className="absolute h-full rounded flex items-center px-1.5"
-                  title={`${g.name} (${g.start} → ${g.end})`}
                   style={{ left: `${left}%`, width: `${width}%`, background: color, minWidth: 4 }}>
                   <span className="text-[9px] text-white truncate">{g.name}</span>
                 </div>
@@ -654,9 +647,7 @@ function TabTimeline({ d }) {
             return (
               <div key={i} className="flex items-center gap-2">
                 <span className="text-[10px] text-neutral-600 w-20 text-right truncate">{g.assignee}</span>
-                {g.url
-                  ? <a href={g.url} target="_blank" rel="noopener noreferrer" className="flex-1">{Bar}</a>
-                  : Bar}
+                {g.url ? <a href={g.url} target="_blank" rel="noopener noreferrer" className="flex-1">{Bar}</a> : Bar}
               </div>
             );
           })}
@@ -737,9 +728,6 @@ function TabRadar({ d }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════
-// TAB 9: BREAKDOWNS (Brand / Market / Campaign)
-// ═══════════════════════════════════════════════════════════
 function BreakdownBlock({ title, data, color = C.purple }) {
   if (!data || data.length === 0) {
     return (
@@ -752,17 +740,15 @@ function BreakdownBlock({ title, data, color = C.purple }) {
   return (
     <Card title={title}>
       <div className="space-y-2.5">
-        {data.slice(0, 10).map((item, i) => (
-          <div key={item.name}>
-            <div className="flex items-center gap-2.5">
-              <span className="text-xs text-neutral-400 w-28 text-right truncate">{item.name}</span>
-              <div className="flex-1 flex h-5 rounded overflow-hidden bg-[#1a1a1a]">
-                <div style={{ width: `${(item.completed / max) * 100}%`, background: C.teal }} />
-                <div style={{ width: `${((item.total - item.completed - item.overdue) / max) * 100}%`, background: color }} />
-                <div style={{ width: `${(item.overdue / max) * 100}%`, background: C.red }} />
-              </div>
-              <span className="text-xs text-neutral-500 w-10 text-right">{item.total}</span>
+        {data.slice(0, 10).map(item => (
+          <div key={item.name} className="flex items-center gap-2.5">
+            <span className="text-xs text-neutral-400 w-28 text-right truncate">{item.name}</span>
+            <div className="flex-1 flex h-5 rounded overflow-hidden bg-[#1a1a1a]">
+              <div style={{ width: `${(item.completed / max) * 100}%`, background: C.teal }} />
+              <div style={{ width: `${((item.total - item.completed - item.overdue) / max) * 100}%`, background: color }} />
+              <div style={{ width: `${(item.overdue / max) * 100}%`, background: C.red }} />
             </div>
+            <span className="text-xs text-neutral-500 w-10 text-right">{item.total}</span>
           </div>
         ))}
       </div>
@@ -776,21 +762,17 @@ function BreakdownBlock({ title, data, color = C.purple }) {
 }
 
 function TabBreakdowns({ d }) {
-  const { brands, markets, campaigns } = d;
   return (
     <>
-      <BreakdownBlock title="Task breakdown by brand" data={brands} color={C.purple} />
+      <BreakdownBlock title="Task breakdown by brand" data={d.brands} color={C.purple} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <BreakdownBlock title="Task breakdown by market" data={markets} color={C.blue} />
-        <BreakdownBlock title="Task breakdown by campaign" data={campaigns} color={C.amber} />
+        <BreakdownBlock title="Task breakdown by market" data={d.markets} color={C.blue} />
+        <BreakdownBlock title="Task breakdown by campaign" data={d.campaigns} color={C.amber} />
       </div>
     </>
   );
 }
 
-// ═══════════════════════════════════════════════════════════
-// TAB 10: MILESTONES & BLOCKERS
-// ═══════════════════════════════════════════════════════════
 function TabMilestonesBlockers({ d }) {
   const { milestones, blocked } = d;
 
@@ -813,9 +795,7 @@ function TabMilestonesBlockers({ d }) {
               <tbody>
                 {milestones.map((m, i) => (
                   <tr key={i} className="border-b border-[#141414] hover:bg-[#141414]">
-                    <td className="py-2.5">
-                      <TaskLink url={m.url}>{m.name}</TaskLink>
-                    </td>
+                    <td className="py-2.5"><TaskLink url={m.url}>{m.name}</TaskLink></td>
                     <td className="py-2.5 text-neutral-500">{m.assignee}</td>
                     <td className="py-2.5 text-center">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] ${
@@ -836,7 +816,6 @@ function TabMilestonesBlockers({ d }) {
       </Card>
 
       <Card title={`Blocked tasks (${blocked.length})`}>
-        <p className="text-[11px] text-neutral-600 mb-3">Tasks waiting on dependencies — click to open in Asana</p>
         {blocked.length === 0 ? (
           <p className="text-xs text-neutral-600 py-4 text-center">No blocked tasks — great flow!</p>
         ) : (
@@ -845,17 +824,11 @@ function TabMilestonesBlockers({ d }) {
               <div key={i} className="bg-[#0e0e0e] rounded-lg p-3 border border-[#1a1a1a]">
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex-1">
-                    <TaskLink url={b.url}>
-                      <span className="text-sm text-neutral-200">{b.name}</span>
-                    </TaskLink>
-                    <p className="text-[11px] text-neutral-600 mt-0.5">
-                      {b.assignee} · Due {b.dueDate || '—'}
-                    </p>
+                    <TaskLink url={b.url}><span className="text-sm text-neutral-200">{b.name}</span></TaskLink>
+                    <p className="text-[11px] text-neutral-600 mt-0.5">{b.assignee} · Due {b.dueDate || '—'}</p>
                   </div>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap ${
-                    b.blockersResolved
-                      ? 'bg-emerald-950/50 text-emerald-400'
-                      : 'bg-amber-950/50 text-amber-400'
+                    b.blockersResolved ? 'bg-emerald-950/50 text-emerald-400' : 'bg-amber-950/50 text-amber-400'
                   }`}>
                     {b.blockersResolved ? 'Ready to start' : 'Waiting'}
                   </span>

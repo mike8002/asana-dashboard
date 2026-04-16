@@ -221,7 +221,7 @@ const INFO = {
   hubTurnaround: 'Average task turnaround per hub. Compare to see which hub ships faster.',
   funnel: 'Where incomplete work is stuck, by Asana section. Helps identify process bottlenecks — if one section is piled up, that stage is blocking flow.',
   projectHealth: 'Per-project health based on completion % and overdue rate.\n• Green: healthy pace\n• Amber: slipping\n• Red: seriously off track',
-  heatmap: 'Calendar view of tasks due per day, colour-coded by workload pressure:\n• Green: 1-3 tasks (healthy)\n• Amber: 4-6 tasks (busy, watch capacity)\n• Red: 7+ tasks (overloaded, slippage risk)\n• Grey: past day or weekend\n\nUse this to spot workload spikes before they happen.',
+  heatmap: 'Calendar view of tasks due per day. Darker cells = more tasks due that day. The scale is relative to the busiest day in view, so you can spot spikes at a glance without needing fixed thresholds. Past days and weekends are greyed.',
   gantt: 'Timeline bars showing when tasks start and end. Blue = on track, red = overdue. Each row is one task, grouped by assignee.',
   radarDubai: 'Radar chart scoring Dubai hub across 5 dimensions (0-100):\n• Volume: output vs capacity\n• On-time: deadline reliability\n• Speed: turnaround time\n• Coverage: % tasks with due dates\n• Consistency: weekly output steadiness\n\nThe more filled-in the shape, the stronger the hub.',
   radarLebanon: 'Same five dimensions as Dubai, scored for Lebanon hub. Compare the two shapes side by side to see relative strengths.',
@@ -793,11 +793,9 @@ function TabProjects({ projects, funnel, filteredFunnel, isFiltered, C }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// TIMELINE TAB — Heatmap uses RAG thresholds, not relative intensity
-// Green: 1-3 tasks (healthy)
-// Amber: 4-6 tasks (busy)
-// Red:   7+ tasks (overloaded)
-// Grey:  past or weekend (no judgement)
+// TIMELINE TAB — Neutral gradient heatmap
+// Darker = more tasks. Scale is relative to the busiest day
+// in the current view. No RAG judgement.
 // ═══════════════════════════════════════════════════════════
 function TabTimeline({ d, C }) {
   const { theme } = useTheme();
@@ -805,18 +803,14 @@ function TabTimeline({ d, C }) {
   const weeks = [];
   for (let i = 0; i < heatmap.length; i += 7) weeks.push(heatmap.slice(i, i + 7));
 
+  // Find the busiest day in view — the scale is relative to this
+  const activeCounts = heatmap.filter(d => !d.isPast && !d.isWeekend && d.count > 0).map(d => d.count);
+  const maxCount = activeCounts.length > 0 ? Math.max(...activeCounts) : 1;
+
   const ganttDates = gantt.flatMap(g => [g.start, g.end]).filter(Boolean).sort();
   const ganttStart = ganttDates[0] || new Date().toISOString().substring(0, 10);
   const ganttEnd = ganttDates[ganttDates.length - 1] || ganttStart;
   const ganttRange = Math.max(1, Math.ceil((new Date(ganttEnd) - new Date(ganttStart)) / 86400000));
-
-  // RAG thresholds for workload pressure
-  function getRagLevel(count) {
-    if (count === 0) return 'empty';
-    if (count <= 3) return 'green';
-    if (count <= 6) return 'amber';
-    return 'red';
-  }
 
   function getDayStyle(day) {
     const L = theme === 'light';
@@ -832,33 +826,40 @@ function TabTimeline({ d, C }) {
       dayLabel: L ? '#9ca3af' : '#525252',
       countColor: null,
     };
-
-    const level = getRagLevel(day.count);
-    if (level === 'empty') return {
+    if (day.count === 0) return {
       bg: L ? '#ffffff' : '#141414',
       dayNum: L ? '#374151' : '#a3a3a3',
       dayLabel: L ? '#9ca3af' : '#737373',
       countColor: null,
     };
-    if (level === 'green') return {
-      bg: L ? '#d1fae5' : '#065f46',
-      dayNum: L ? '#065f46' : '#a7f3d0',
-      dayLabel: L ? '#047857' : '#6ee7b7',
-      countColor: L ? '#065f46' : '#ffffff',
-    };
-    if (level === 'amber') return {
-      bg: L ? '#fed7aa' : '#7c2d12',
-      dayNum: L ? '#7c2d12' : '#fed7aa',
-      dayLabel: L ? '#9a3412' : '#fdba74',
-      countColor: L ? '#7c2d12' : '#ffffff',
-    };
-    // red
-    return {
-      bg: L ? '#fecaca' : '#7f1d1d',
-      dayNum: L ? '#7f1d1d' : '#fecaca',
-      dayLabel: L ? '#991b1b' : '#fca5a5',
-      countColor: L ? '#7f1d1d' : '#ffffff',
-    };
+
+    const intensity = day.count / maxCount;
+
+    if (L) {
+      // Light mode: white → deep teal gradient
+      const r = Math.round(255 - intensity * (255 - 15));
+      const g = Math.round(255 - intensity * (255 - 118));
+      const b = Math.round(255 - intensity * (255 - 110));
+      const textLight = intensity < 0.55;
+      return {
+        bg: `rgb(${r}, ${g}, ${b})`,
+        dayNum: textLight ? '#0f766e' : '#ffffff',
+        dayLabel: textLight ? '#0d9488' : '#ccfbf1',
+        countColor: textLight ? '#0f766e' : '#ffffff',
+      };
+    } else {
+      // Dark mode: near-black → bright teal gradient
+      const r = Math.round(20 + intensity * (45 - 20));
+      const g = Math.round(20 + intensity * (212 - 20));
+      const b = Math.round(20 + intensity * (191 - 20));
+      const textLight = intensity < 0.4;
+      return {
+        bg: `rgb(${r}, ${g}, ${b})`,
+        dayNum: textLight ? '#5eead4' : '#0f172a',
+        dayLabel: textLight ? '#2dd4bf' : '#134e4a',
+        countColor: textLight ? '#5eead4' : '#0f172a',
+      };
+    }
   }
 
   const L = theme === 'light';
@@ -867,7 +868,7 @@ function TabTimeline({ d, C }) {
     <>
       <Card title="Workload heatmap: tasks due per day" info={INFO.heatmap}>
         <p className="text-[11px] mb-3" style={{ color: 'var(--text-faint)' }}>
-          Each cell is a day, colour-coded by workload pressure. Past days and weekends are greyed.
+          Each cell is a day. Darker = more tasks due. Scale adjusts to the busiest day in view.
         </p>
         <div className="space-y-1">
           {weeks.map((week, wi) => (
@@ -889,7 +890,7 @@ function TabTimeline({ d, C }) {
                       <span className="absolute top-1 right-1.5 text-[10px] font-bold px-1 rounded"
                         style={{
                           color: style.countColor,
-                          background: theme === 'light' ? 'rgba(255,255,255,.5)' : 'rgba(0,0,0,.25)',
+                          background: L ? 'rgba(255,255,255,.4)' : 'rgba(0,0,0,.2)',
                         }}>
                         {day.count}
                       </span>
@@ -901,25 +902,33 @@ function TabTimeline({ d, C }) {
           ))}
         </div>
 
-        {/* RAG legend */}
+        {/* Gradient legend */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-[10px]" style={{ color: 'var(--text-faint)' }}>
-          <span>Workload pressure:</span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-4 h-3 rounded" style={{ background: L ? '#ffffff' : '#141414', border: '1px solid var(--border)' }} />
-            None (0 tasks)
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-4 h-3 rounded" style={{ background: L ? '#d1fae5' : '#065f46' }} />
-            Healthy (1-3)
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-4 h-3 rounded" style={{ background: L ? '#fed7aa' : '#7c2d12' }} />
-            Busy (4-6)
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-4 h-3 rounded" style={{ background: L ? '#fecaca' : '#7f1d1d' }} />
-            Overloaded (7+)
-          </span>
+          <span>Task volume:</span>
+          <span>Fewer</span>
+          <div className="flex gap-0.5 items-center">
+            {[0.1, 0.25, 0.5, 0.75, 1].map((intensity, i) => {
+              let bg;
+              if (L) {
+                const r = Math.round(255 - intensity * (255 - 15));
+                const g = Math.round(255 - intensity * (255 - 118));
+                const b = Math.round(255 - intensity * (255 - 110));
+                bg = `rgb(${r}, ${g}, ${b})`;
+              } else {
+                const r = Math.round(20 + intensity * (45 - 20));
+                const g = Math.round(20 + intensity * (212 - 20));
+                const b = Math.round(20 + intensity * (191 - 20));
+                bg = `rgb(${r}, ${g}, ${b})`;
+              }
+              return <div key={i} className="w-5 h-3 rounded-sm" style={{ background: bg, border: i === 0 && L ? '1px solid var(--border)' : 'none' }} />;
+            })}
+          </div>
+          <span>More</span>
+          {activeCounts.length > 0 && (
+            <span style={{ marginLeft: 8, color: 'var(--text-fainter)' }}>
+              Busiest day: {maxCount} {maxCount === 1 ? 'task' : 'tasks'}
+            </span>
+          )}
           <span style={{ marginLeft: 'auto', color: 'var(--text-fainter)' }}>Grey = past or weekend</span>
         </div>
       </Card>

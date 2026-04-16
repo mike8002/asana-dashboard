@@ -611,56 +611,75 @@ function TabTimeline({ d, C }) {
   const maxCount = Math.max(...heatmap.map(h => h.count), 1);
   const weeks = [];
   for (let i = 0; i < heatmap.length; i += 7) weeks.push(heatmap.slice(i, i + 7));
-
+ 
   const ganttDates = gantt.flatMap(g => [g.start, g.end]).filter(Boolean).sort();
   const ganttStart = ganttDates[0] || new Date().toISOString().substring(0, 10);
   const ganttEnd = ganttDates[ganttDates.length - 1] || ganttStart;
   const ganttRange = Math.max(1, Math.ceil((new Date(ganttEnd) - new Date(ganttStart)) / 86400000));
-
-  // ── Improved heatmap colours for readability ─────────────
+ 
+  // ── Heatmap cell styling ─────────────────────────────────
   function getDayStyle(day, intensity) {
-    if (theme === 'light') {
-      if (day.isWeekend) {
-        return { bg: '#f5f5f5', dayNum: '#a3a3a3', dayLabel: '#a3a3a3' };
-      }
-      if (day.isPast) {
-        return { bg: '#eeeeee', dayNum: '#a3a3a3', dayLabel: '#a3a3a3' };
-      }
-      if (day.count === 0) {
-        return { bg: '#ffffff', dayNum: '#262626', dayLabel: '#737373' };
-      }
-      // Active day with tasks: graduated green fills, white text on strong colours
-      if (intensity < 0.33) {
-        return { bg: '#d1fae5', dayNum: '#065f46', dayLabel: '#047857' };
-      } else if (intensity < 0.66) {
-        return { bg: '#10b981', dayNum: '#ffffff', dayLabel: '#d1fae5' };
-      } else {
-        return { bg: '#047857', dayNum: '#ffffff', dayLabel: '#a7f3d0' };
-      }
+    const L = theme === 'light';
+ 
+    // Past days: always muted, regardless of tasks
+    if (day.isPast) {
+      return {
+        bg: L ? '#f3f4f6' : '#1f1f1f',
+        dayNum: L ? '#9ca3af' : '#525252',
+        dayLabel: L ? '#9ca3af' : '#525252',
+        countColor: null,
+      };
+    }
+ 
+    // Weekends: slightly different tint
+    if (day.isWeekend) {
+      return {
+        bg: L ? '#fafafa' : '#0e0e0e',
+        dayNum: L ? '#9ca3af' : '#525252',
+        dayLabel: L ? '#9ca3af' : '#525252',
+        countColor: null,
+      };
+    }
+ 
+    // Future weekday with zero tasks
+    if (day.count === 0) {
+      return {
+        bg: L ? '#ffffff' : '#141414',
+        dayNum: L ? '#374151' : '#a3a3a3',
+        dayLabel: L ? '#9ca3af' : '#737373',
+        countColor: null,
+      };
+    }
+ 
+    // Future weekday with tasks: graduated green
+    if (intensity < 0.33) {
+      return {
+        bg: L ? '#d1fae5' : '#064e3b',
+        dayNum: L ? '#065f46' : '#d1fae5',
+        dayLabel: L ? '#047857' : '#6ee7b7',
+        countColor: L ? '#047857' : '#d1fae5',
+      };
+    } else if (intensity < 0.66) {
+      return {
+        bg: L ? '#10b981' : '#059669',
+        dayNum: '#ffffff',
+        dayLabel: L ? '#d1fae5' : '#ecfdf5',
+        countColor: '#ffffff',
+      };
     } else {
-      if (day.isWeekend) {
-        return { bg: '#0e0e0e', dayNum: '#404040', dayLabel: '#404040' };
-      }
-      if (day.isPast) {
-        return { bg: '#181818', dayNum: '#525252', dayLabel: '#525252' };
-      }
-      if (day.count === 0) {
-        return { bg: '#141414', dayNum: '#737373', dayLabel: '#525252' };
-      }
-      if (intensity < 0.33) {
-        return { bg: '#064e3b', dayNum: '#d1fae5', dayLabel: '#6ee7b7' };
-      } else if (intensity < 0.66) {
-        return { bg: '#059669', dayNum: '#ffffff', dayLabel: '#ecfdf5' };
-      } else {
-        return { bg: '#10b981', dayNum: '#ffffff', dayLabel: '#ffffff' };
-      }
+      return {
+        bg: L ? '#047857' : '#10b981',
+        dayNum: '#ffffff',
+        dayLabel: L ? '#a7f3d0' : '#ffffff',
+        countColor: '#ffffff',
+      };
     }
   }
-
+ 
   return (
     <>
       <Card title="Workload heatmap: tasks due per day">
-        <p className="text-[11px] mb-3" style={{ color: 'var(--text-faint)' }}>Darker green means more tasks due that day. Hover to see counts.</p>
+        <p className="text-[11px] mb-3" style={{ color: 'var(--text-faint)' }}>Each cell is a day. Green = tasks due. Grey = past or weekend.</p>
         <div className="space-y-1">
           {weeks.map((week, wi) => (
             <div key={wi} className="flex gap-1">
@@ -668,13 +687,24 @@ function TabTimeline({ d, C }) {
                 const intensity = day.count / maxCount;
                 const style = getDayStyle(day, intensity);
                 return (
-                  <div key={day.date} title={`${day.date}: ${day.count} ${day.count === 1 ? 'task' : 'tasks'} due`}
-                    className="flex-1 h-12 rounded flex flex-col items-center justify-center gap-0.5"
+                  <div key={day.date}
+                    title={`${day.date}: ${day.count} ${day.count === 1 ? 'task' : 'tasks'} due`}
+                    className="flex-1 h-14 rounded flex flex-col items-center justify-center relative"
                     style={{ background: style.bg }}>
-                    <span className="text-[9px] font-medium" style={{ color: style.dayLabel }}>{day.dayName}</span>
-                    <span className="text-[11px] font-semibold" style={{ color: style.dayNum }}>{day.day}</span>
-                    {day.count > 0 && (
-                      <span className="text-[9px] font-semibold" style={{ color: style.dayNum }}>{day.count}</span>
+                    <span className="text-[9px] font-medium leading-none mb-0.5" style={{ color: style.dayLabel }}>
+                      {day.dayName}
+                    </span>
+                    <span className="text-[13px] font-semibold leading-none" style={{ color: style.dayNum }}>
+                      {day.day}
+                    </span>
+                    {day.count > 0 && style.countColor && (
+                      <span className="absolute top-1 right-1.5 text-[10px] font-bold px-1 rounded"
+                        style={{
+                          color: style.countColor,
+                          background: theme === 'light' ? 'rgba(255,255,255,.5)' : 'rgba(0,0,0,.25)',
+                        }}>
+                        {day.count}
+                      </span>
                     )}
                   </div>
                 );
@@ -683,19 +713,19 @@ function TabTimeline({ d, C }) {
           ))}
         </div>
         <div className="flex items-center gap-3 mt-4 text-[10px]" style={{ color: 'var(--text-faint)' }}>
-          <span>Intensity:</span>
-          <div className="flex gap-1">
+          <span>Task volume:</span>
+          <div className="flex gap-1 items-center">
             <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#ffffff' : '#141414', border: '1px solid var(--border)' }} />
-            <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#d1fae5' : '#064e3b' }} />
+            <span>None</span>
+            <div className="w-5 h-4 rounded ml-2" style={{ background: theme === 'light' ? '#d1fae5' : '#064e3b' }} />
             <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#10b981' : '#059669' }} />
             <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#047857' : '#10b981' }} />
+            <span>High</span>
           </div>
-          <span>Low</span>
-          <span style={{ marginLeft: 'auto' }}>→</span>
-          <span>High</span>
+          <span style={{ marginLeft: 'auto' }}>Grey = past · faint = weekend</span>
         </div>
       </Card>
-
+ 
       <Card title="Gantt-style task timeline">
         <div className="space-y-1.5">
           {gantt.map((g, i) => {
@@ -704,7 +734,7 @@ function TabTimeline({ d, C }) {
             const left = (startOffset / ganttRange) * 100;
             const width = Math.max(2, (duration / ganttRange) * 100);
             const color = g.status === 'Overdue' ? C.red : C.blue;
-
+ 
             const Bar = (
               <div className="flex-1 relative h-5 rounded" style={{ background: 'var(--surface-4)' }}>
                 <div className="absolute h-full rounded flex items-center px-1.5"
@@ -713,7 +743,7 @@ function TabTimeline({ d, C }) {
                 </div>
               </div>
             );
-
+ 
             return (
               <div key={i} className="flex items-center gap-2">
                 <span className="text-[10px] w-20 text-right truncate" style={{ color: 'var(--text-faint)' }}>{g.assignee}</span>

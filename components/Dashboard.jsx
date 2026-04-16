@@ -36,19 +36,78 @@ function useChartColors() {
   };
 }
 
-function Card({ title, children, className = '' }) {
+// ═══════════════════════════════════════════════════════════
+// InfoTooltip — circular help icon that reveals explanatory
+// text on hover. Used throughout the dashboard to document
+// what each chart shows and how to read it.
+// ═══════════════════════════════════════════════════════════
+function InfoTooltip({ text }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex" style={{ marginLeft: 6 }}>
+      <button
+        type="button"
+        aria-label="What is this?"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onClick={() => setOpen(!open)}
+        className="rounded-full flex items-center justify-center transition-colors cursor-help"
+        style={{
+          width: 14, height: 14,
+          background: 'var(--surface-3)',
+          border: '1px solid var(--border-strong)',
+          color: 'var(--text-dim)',
+          fontSize: 9,
+          fontWeight: 600,
+          lineHeight: 1,
+        }}
+      >?</button>
+      {open && (
+        <span
+          role="tooltip"
+          className="absolute z-50 p-3 rounded-lg text-xs leading-relaxed whitespace-pre-line"
+          style={{
+            bottom: 'calc(100% + 6px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 260,
+            background: 'var(--surface)',
+            border: '1px solid var(--border-strong)',
+            color: 'var(--text-muted)',
+            boxShadow: '0 4px 16px rgba(0,0,0,.3)',
+            pointerEvents: 'none',
+          }}
+        >
+          {text}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function Card({ title, info, children, className = '' }) {
   return (
     <div className={`rounded-xl p-5 ${className}`} style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-      {title && <h3 className="text-sm font-medium mb-4" style={{ color: 'var(--text-muted)' }}>{title}</h3>}
+      {title && (
+        <h3 className="text-sm font-medium mb-4 flex items-center" style={{ color: 'var(--text-muted)' }}>
+          {title}
+          {info && <InfoTooltip text={info} />}
+        </h3>
+      )}
       {children}
     </div>
   );
 }
 
-function Metric({ label, value, color, sub }) {
+function Metric({ label, value, color, sub, info }) {
   return (
     <div className="rounded-xl p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-      <p className="text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--text-faint)' }}>{label}</p>
+      <p className="text-[11px] uppercase tracking-wider mb-1 flex items-center" style={{ color: 'var(--text-faint)' }}>
+        {label}
+        {info && <InfoTooltip text={info} />}
+      </p>
       <p className="text-2xl font-semibold tracking-tight" style={{ color: color || 'var(--text)' }}>{value}</p>
       {sub && <p className="text-[11px] mt-1" style={{ color: 'var(--text-fainter)' }}>{sub}</p>}
     </div>
@@ -110,6 +169,42 @@ const TABS = [
   'Projects & Funnel', 'Timeline & Heatmap', 'Performance Radar',
   'Breakdowns', 'Milestones & Blockers', 'Budgets',
 ];
+
+// ═══════════════════════════════════════════════════════════
+// INFO TEXT — descriptions for every chart, card, and metric.
+// Keep these short (2-3 sentences) and action-oriented.
+// ═══════════════════════════════════════════════════════════
+const INFO = {
+  total: 'Every task and subtask across the selected client. Includes completed, in-progress, and overdue items.',
+  completed: 'Tasks marked complete in Asana. Only counts tasks with a completion date.',
+  overdue: 'Incomplete tasks whose due date has passed. The higher this number, the more slippage.',
+  hours: 'Total actual hours logged across all tasks. Only available on Asana Business plans with time tracking enabled.',
+  taskLoad: 'Horizontal stacked bars showing each person\'s workload broken down by urgency. Red = overdue, amber = due within 7 days, blue = upcoming, grey = no due date. Bigger bar = more open work.',
+  timingSplit: 'Donut chart showing the urgency mix of all open tasks. A healthy team has mostly blue (upcoming) and small slivers of red (overdue).',
+  weeklyTrend: 'Bar chart of completed tasks each week. Use this to spot whether the team is shipping consistently or in bursts.',
+  backlogTrend: 'Three lines showing the flow of work:\n• Created (amber): new tasks coming in\n• Completed (teal): tasks shipped\n• Open backlog (red): running total of unfinished work\n\nIf created stays above completed for long, the backlog grows.',
+  capacity: 'Expected output (grey) vs actual completions (teal). Capacity is calculated as team size × 8 tasks/week. If actual is consistently below capacity, there\'s a throughput issue.',
+  subtaskSplit: 'How much of the work is top-level tasks vs subtasks. Heavy subtask use often indicates complex projects broken into steps.',
+  onTimeRank: 'Percentage of each person\'s completed tasks that shipped on or before the due date. Green ≥85%, amber 75-84%, red <75%.',
+  onTimeVsLate: 'For each person: number of tasks shipped on time (teal) vs late (red). Shows both the rate AND the volume.',
+  turnaround: 'Average days from task creation to completion per person. Green ≤7 days, amber 8-14, red >14. Lower is better.',
+  velocity: 'Line chart tracking each person\'s weekly task completions. Use this to spot who\'s accelerating, plateauing, or slowing down.',
+  hubOutput: 'Weekly completion count split by hub. Shows which hub is carrying more delivery load week to week.',
+  hubTurnaround: 'Average task turnaround per hub. Compare to see which hub ships faster.',
+  funnel: 'Where incomplete work is stuck, by Asana section. Helps identify process bottlenecks — if one section is piled up, that stage is blocking flow.',
+  projectHealth: 'Per-project health based on completion % and overdue rate.\n• Green: healthy pace\n• Amber: slipping\n• Red: seriously off track',
+  heatmap: 'Calendar view of tasks due per day. Teal = upcoming tasks due. Darker teal = more tasks. Grey = past or weekend. Use this to spot workload spikes before they happen.',
+  gantt: 'Timeline bars showing when tasks start and end. Blue = on track, red = overdue. Each row is one task, grouped by assignee.',
+  radarDubai: 'Radar chart scoring Dubai hub across 5 dimensions (0-100):\n• Volume: output vs capacity\n• On-time: deadline reliability\n• Speed: turnaround time\n• Coverage: % tasks with due dates\n• Consistency: weekly output steadiness\n\nThe more filled-in the shape, the stronger the hub.',
+  radarLebanon: 'Same five dimensions as Dubai, scored for Lebanon hub. Compare the two shapes side by side to see relative strengths.',
+  composite: 'Average of all 5 radar scores per hub. Green ≥70, amber 50-69, red <50. A quick single-number health score.',
+  brands: 'Task volume split by the Brand custom field. Shows which brand is generating the most work. Bars split: teal = completed, purple = in progress, red = overdue.',
+  markets: 'Task volume by market/country. Useful for planning geographic workload distribution.',
+  campaigns: 'Task volume by campaign. Helps identify which campaigns are running hot.',
+  milestones: 'Tasks specifically flagged as milestones in Asana (key delivery points). Use this tab to prep for upcoming deliverables.',
+  blocked: 'Tasks with dependencies that aren\'t yet complete. "Waiting" means blockers still open, "Ready to start" means all dependencies just cleared.',
+  budgets: 'Auto-detects all numeric custom fields in Asana (like "Total Digital Budget"). Shows total committed, in-flight (incomplete), and spent (completed). Breaks budget down by brand, market, and campaign.',
+};
 
 export default function Dashboard({ data, error, userName, userImage, clients, activeClient }) {
   const router = useRouter();
@@ -258,15 +353,15 @@ function TabOverview({ d, tasks, C, URGENCY_COLORS, TT_STYLE }) {
   return (
     <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Metric label="Total tasks" value={summary.total} />
-        <Metric label="Completed" value={summary.completed} color={C.teal} />
-        <Metric label="Overdue" value={summary.overdue} color={C.red} />
+        <Metric label="Total tasks" value={summary.total} info={INFO.total} />
+        <Metric label="Completed" value={summary.completed} color={C.teal} info={INFO.completed} />
+        <Metric label="Overdue" value={summary.overdue} color={C.red} info={INFO.overdue} />
         <Metric label="Hours logged" value={summary.hours > 0 ? `${summary.hours}h` : '0h'}
-          sub={summary.hours === 0 ? 'Requires Asana Business' : ''} />
+          sub={summary.hours === 0 ? 'Requires Asana Business' : ''} info={INFO.hours} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Card title="Task load by member">
+        <Card title="Task load by member" info={INFO.taskLoad}>
           <div className="space-y-2">
             {members.filter(m => m.name !== 'Unassigned').slice(0, 10).map(m => {
               const max = Math.max(1, m.overdue + m.dueSoon + m.upcoming + m.noDate);
@@ -291,7 +386,7 @@ function TabOverview({ d, tasks, C, URGENCY_COLORS, TT_STYLE }) {
           </div>
         </Card>
 
-        <Card title="Task timing split">
+        <Card title="Task timing split" info={INFO.timingSplit}>
           <div className="flex items-center justify-center gap-6">
             <ResponsiveContainer width={150} height={150}>
               <PieChart>
@@ -312,7 +407,7 @@ function TabOverview({ d, tasks, C, URGENCY_COLORS, TT_STYLE }) {
         </Card>
       </div>
 
-      <Card title="Weekly output trend">
+      <Card title="Weekly output trend" info={INFO.weeklyTrend}>
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={weekly}>
             <CartesianGrid strokeDasharray="3 3" stroke={C.grid} />
@@ -337,7 +432,7 @@ function TabBacklog({ d, C, TT_STYLE }) {
 
   return (
     <>
-      <Card title="Backlog trend: created vs completed">
+      <Card title="Backlog trend: created vs completed" info={INFO.backlogTrend}>
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={backlog}>
             <CartesianGrid strokeDasharray="3 3" stroke={C.grid} />
@@ -352,7 +447,7 @@ function TabBacklog({ d, C, TT_STYLE }) {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Card title="Capacity vs actual output">
+        <Card title="Capacity vs actual output" info={INFO.capacity}>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={capacityData}>
               <CartesianGrid strokeDasharray="3 3" stroke={C.grid} />
@@ -365,7 +460,7 @@ function TabBacklog({ d, C, TT_STYLE }) {
           </ResponsiveContainer>
         </Card>
 
-        <Card title="Subtask vs top-level split">
+        <Card title="Subtask vs top-level split" info={INFO.subtaskSplit}>
           <div className="flex items-center justify-center gap-6">
             <ResponsiveContainer width={150} height={150}>
               <PieChart>
@@ -396,7 +491,7 @@ function TabOnTime({ d, C }) {
 
   return (
     <>
-      <Card title="On-time rate ranking">
+      <Card title="On-time rate ranking" info={INFO.onTimeRank}>
         {rated.length === 0 ? (
           <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No tasks with both due dates and completion dates</p>
         ) : (
@@ -409,7 +504,7 @@ function TabOnTime({ d, C }) {
         )}
       </Card>
 
-      <Card title="On-time vs late task count">
+      <Card title="On-time vs late task count" info={INFO.onTimeVsLate}>
         {rated.length === 0 ? (
           <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No data available</p>
         ) : (
@@ -440,7 +535,7 @@ function TabVelocity({ d, C, TT_STYLE }) {
 
   return (
     <>
-      <Card title="Average turnaround by member">
+      <Card title="Average turnaround by member" info={INFO.turnaround}>
         <p className="text-[11px] mb-3" style={{ color: 'var(--text-faint)' }}>Days from creation to completion, lower is better</p>
         {withTurnaround.length === 0 ? (
           <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No completed tasks with creation dates</p>
@@ -454,7 +549,7 @@ function TabVelocity({ d, C, TT_STYLE }) {
         )}
       </Card>
 
-      <Card title="Task velocity: weekly completions per member">
+      <Card title="Task velocity: weekly completions per member" info={INFO.velocity}>
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={velocity}>
             <CartesianGrid strokeDasharray="3 3" stroke={C.grid} />
@@ -537,7 +632,7 @@ function TabHubs({ d, C, TT_STYLE }) {
         ))}
       </div>
 
-      <Card title="Weekly output: Dubai vs Lebanon">
+      <Card title="Weekly output: Dubai vs Lebanon" info={INFO.hubOutput}>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={hubWeekly}>
             <CartesianGrid strokeDasharray="3 3" stroke={C.grid} />
@@ -550,7 +645,7 @@ function TabHubs({ d, C, TT_STYLE }) {
         </ResponsiveContainer>
       </Card>
 
-      <Card title="Turnaround: hub comparison">
+      <Card title="Turnaround: hub comparison" info={INFO.hubTurnaround}>
         <div className="space-y-2.5">
           {hubTurnaround.map(h => (
             <HBar key={h.hub} name={h.hub} value={h.avgDays} max={Math.max(...hubTurnaround.map(x => x.avgDays), 1)}
@@ -566,13 +661,13 @@ function TabProjects({ projects, funnel, C }) {
   const maxFunnel = funnel.length > 0 ? funnel[0].count : 1;
   return (
     <>
-      <Card title="Task stage funnel across all projects">
+      <Card title="Task stage funnel across all projects" info={INFO.funnel}>
         <div className="space-y-2.5">
           {funnel.slice(0, 12).map(f => (<HBar key={f.name} name={f.name} value={f.count} max={maxFunnel} color={C.purple} />))}
         </div>
       </Card>
 
-      <Card title="Project health scorecard">
+      <Card title="Project health scorecard" info={INFO.projectHealth}>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
@@ -619,29 +714,17 @@ function TabTimeline({ d, C }) {
 
   function getDayStyle(day, intensity) {
     const L = theme === 'light';
-
-    if (day.isPast) {
-      return { bg: L ? '#f3f4f6' : '#1f1f1f', dayNum: L ? '#9ca3af' : '#525252', dayLabel: L ? '#9ca3af' : '#525252', countColor: null };
-    }
-    if (day.isWeekend) {
-      return { bg: L ? '#fafafa' : '#0e0e0e', dayNum: L ? '#9ca3af' : '#525252', dayLabel: L ? '#9ca3af' : '#525252', countColor: null };
-    }
-    if (day.count === 0) {
-      return { bg: L ? '#ffffff' : '#141414', dayNum: L ? '#374151' : '#a3a3a3', dayLabel: L ? '#9ca3af' : '#737373', countColor: null };
-    }
-    // Vibrant modern teal/mint gradient for active days
-    if (intensity < 0.33) {
-      return { bg: L ? '#ccfbf1' : '#134e4a', dayNum: L ? '#0f766e' : '#5eead4', dayLabel: L ? '#0d9488' : '#2dd4bf', countColor: L ? '#0f766e' : '#ccfbf1' };
-    } else if (intensity < 0.66) {
-      return { bg: L ? '#14b8a6' : '#0d9488', dayNum: '#ffffff', dayLabel: L ? '#ccfbf1' : '#ecfeff', countColor: '#ffffff' };
-    } else {
-      return { bg: L ? '#0f766e' : '#2dd4bf', dayNum: '#ffffff', dayLabel: L ? '#99f6e4' : '#ffffff', countColor: '#ffffff' };
-    }
+    if (day.isPast) return { bg: L ? '#f3f4f6' : '#1f1f1f', dayNum: L ? '#9ca3af' : '#525252', dayLabel: L ? '#9ca3af' : '#525252', countColor: null };
+    if (day.isWeekend) return { bg: L ? '#fafafa' : '#0e0e0e', dayNum: L ? '#9ca3af' : '#525252', dayLabel: L ? '#9ca3af' : '#525252', countColor: null };
+    if (day.count === 0) return { bg: L ? '#ffffff' : '#141414', dayNum: L ? '#374151' : '#a3a3a3', dayLabel: L ? '#9ca3af' : '#737373', countColor: null };
+    if (intensity < 0.33) return { bg: L ? '#ccfbf1' : '#134e4a', dayNum: L ? '#0f766e' : '#5eead4', dayLabel: L ? '#0d9488' : '#2dd4bf', countColor: L ? '#0f766e' : '#ccfbf1' };
+    if (intensity < 0.66) return { bg: L ? '#14b8a6' : '#0d9488', dayNum: '#ffffff', dayLabel: L ? '#ccfbf1' : '#ecfeff', countColor: '#ffffff' };
+    return { bg: L ? '#0f766e' : '#2dd4bf', dayNum: '#ffffff', dayLabel: L ? '#99f6e4' : '#ffffff', countColor: '#ffffff' };
   }
 
   return (
     <>
-      <Card title="Workload heatmap: tasks due per day">
+      <Card title="Workload heatmap: tasks due per day" info={INFO.heatmap}>
         <p className="text-[11px] mb-3" style={{ color: 'var(--text-faint)' }}>Each cell is a day. Teal = tasks due. Grey = past or weekend.</p>
         <div className="space-y-1">
           {weeks.map((week, wi) => (
@@ -689,7 +772,7 @@ function TabTimeline({ d, C }) {
         </div>
       </Card>
 
-      <Card title="Gantt-style task timeline">
+      <Card title="Gantt-style task timeline" info={INFO.gantt}>
         <div className="space-y-1.5">
           {gantt.map((g, i) => {
             const startOffset = Math.max(0, Math.ceil((new Date(g.start) - new Date(ganttStart)) / 86400000));
@@ -725,7 +808,7 @@ function TabRadar({ d, C }) {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Card title="Performance radar: Dubai">
+        <Card title="Performance radar: Dubai" info={INFO.radarDubai}>
           {radarDubai.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <RadarChart data={radarDubai}>
@@ -738,7 +821,7 @@ function TabRadar({ d, C }) {
           ) : <p className="text-xs py-10 text-center" style={{ color: 'var(--text-faint)' }}>No Dubai members mapped</p>}
         </Card>
 
-        <Card title="Performance radar: Lebanon">
+        <Card title="Performance radar: Lebanon" info={INFO.radarLebanon}>
           {radarLebanon.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <RadarChart data={radarLebanon}>
@@ -752,7 +835,7 @@ function TabRadar({ d, C }) {
         </Card>
       </div>
 
-      <Card title="Full performance scorecard">
+      <Card title="Full performance scorecard" info={INFO.composite}>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
@@ -787,17 +870,17 @@ function TabRadar({ d, C }) {
   );
 }
 
-function BreakdownBlock({ title, data, color, C }) {
+function BreakdownBlock({ title, data, color, C, info }) {
   if (!data || data.length === 0) {
     return (
-      <Card title={title}>
+      <Card title={title} info={info}>
         <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No data, ensure this custom field is populated in Asana</p>
       </Card>
     );
   }
   const max = data[0]?.total || 1;
   return (
-    <Card title={title}>
+    <Card title={title} info={info}>
       <div className="space-y-2.5">
         {data.slice(0, 10).map(item => (
           <div key={item.name} className="flex items-center gap-2.5">
@@ -823,10 +906,10 @@ function BreakdownBlock({ title, data, color, C }) {
 function TabBreakdowns({ d, C }) {
   return (
     <>
-      <BreakdownBlock title="Task breakdown by brand" data={d.brands} color={C.purple} C={C} />
+      <BreakdownBlock title="Task breakdown by brand" data={d.brands} color={C.purple} C={C} info={INFO.brands} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <BreakdownBlock title="Task breakdown by market" data={d.markets} color={C.blue} C={C} />
-        <BreakdownBlock title="Task breakdown by campaign" data={d.campaigns} color={C.amber} C={C} />
+        <BreakdownBlock title="Task breakdown by market" data={d.markets} color={C.blue} C={C} info={INFO.markets} />
+        <BreakdownBlock title="Task breakdown by campaign" data={d.campaigns} color={C.amber} C={C} info={INFO.campaigns} />
       </div>
     </>
   );
@@ -838,7 +921,7 @@ function TabMilestonesBlockers({ d }) {
 
   return (
     <>
-      <Card title={`Upcoming milestones (${milestones.length})`}>
+      <Card title={`Upcoming milestones (${milestones.length})`} info={INFO.milestones}>
         {milestones.length === 0 ? (
           <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No milestone tasks. Mark tasks as milestones in Asana.</p>
         ) : (
@@ -876,7 +959,7 @@ function TabMilestonesBlockers({ d }) {
         )}
       </Card>
 
-      <Card title={`Blocked tasks (${blocked.length})`}>
+      <Card title={`Blocked tasks (${blocked.length})`} info={INFO.blocked}>
         {blocked.length === 0 ? (
           <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No blocked tasks, great flow!</p>
         ) : (
@@ -948,7 +1031,7 @@ function TabBudgets({ d, C }) {
 
   if (!budgets || budgets.length === 0) {
     return (
-      <Card>
+      <Card info={INFO.budgets}>
         <p className="text-xs py-8 text-center" style={{ color: 'var(--text-faint)' }}>
           No number-type custom fields detected in your Asana project.<br />
           Add numeric fields (like &ldquo;Total Digital Budget&rdquo; or &ldquo;Fees&rdquo;) to tasks to track them here.
@@ -959,10 +1042,11 @@ function TabBudgets({ d, C }) {
 
   return (
     <div className="space-y-8">
-      {budgets.map(b => (
+      {budgets.map((b, i) => (
         <div key={b.field} className="space-y-3">
-          <h2 className="text-sm font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+          <h2 className="text-sm font-medium uppercase tracking-wider flex items-center" style={{ color: 'var(--text-muted)' }}>
             {b.field}
+            {i === 0 && <InfoTooltip text={INFO.budgets} />}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <Metric label="Total" value={formatCurrency(b.total)} />

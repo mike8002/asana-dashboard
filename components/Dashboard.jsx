@@ -173,7 +173,7 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
 
   if (!data || !processed) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
-      <p style={{ color: 'var(--text-dim)' }}>Loading dashboard…</p>
+      <p style={{ color: 'var(--text-dim)' }}>Loading dashboard...</p>
     </div>
   );
 
@@ -189,7 +189,8 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
         style={{ borderBottom: '1px solid var(--border)', background: 'color-mix(in srgb, var(--bg) 95%, transparent)' }}>
         <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            <img src="/um-logo.webp" alt="UM" className="h-6 w-auto" />             <span className="text-base font-semibold tracking-tight" style={{ color: 'var(--text)' }}>Team Utilisation</span>
+            <img src="/UM-logo.webp" alt="UM" className="h-6 w-auto" />
+            <span className="text-base font-semibold tracking-tight" style={{ color: 'var(--text)' }}>Team Utilisation</span>
             <span className="w-px h-4" style={{ background: 'var(--border-strong)' }}></span>
             <select value={activeClient.id} onChange={handleClientChange}
               className="rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none cursor-pointer"
@@ -207,7 +208,7 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
             </select>
             <button onClick={handleRefresh} disabled={refreshing}
               className="text-xs rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50" style={selectStyle}>
-              {refreshing ? 'Refreshing…' : '↻ Refresh'}
+              {refreshing ? 'Refreshing...' : '↻ Refresh'}
             </button>
             <ThemeToggle />
             <div className="flex items-center gap-2">
@@ -260,7 +261,7 @@ function TabOverview({ d, tasks, C, URGENCY_COLORS, TT_STYLE }) {
         <Metric label="Total tasks" value={summary.total} />
         <Metric label="Completed" value={summary.completed} color={C.teal} />
         <Metric label="Overdue" value={summary.overdue} color={C.red} />
-        <Metric label="Hours logged" value={summary.hours > 0 ? `${summary.hours}h` : '—'}
+        <Metric label="Hours logged" value={summary.hours > 0 ? `${summary.hours}h` : '0h'}
           sub={summary.hours === 0 ? 'Requires Asana Business' : ''} />
       </div>
 
@@ -336,7 +337,7 @@ function TabBacklog({ d, C, TT_STYLE }) {
 
   return (
     <>
-      <Card title="Backlog trend — created vs completed">
+      <Card title="Backlog trend: created vs completed">
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={backlog}>
             <CartesianGrid strokeDasharray="3 3" stroke={C.grid} />
@@ -408,7 +409,7 @@ function TabOnTime({ d, C }) {
         )}
       </Card>
 
-      <Card title="On-time vs late — task count">
+      <Card title="On-time vs late task count">
         {rated.length === 0 ? (
           <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No data available</p>
         ) : (
@@ -440,7 +441,7 @@ function TabVelocity({ d, C, TT_STYLE }) {
   return (
     <>
       <Card title="Average turnaround by member">
-        <p className="text-[11px] mb-3" style={{ color: 'var(--text-faint)' }}>Days from creation to completion — lower is better</p>
+        <p className="text-[11px] mb-3" style={{ color: 'var(--text-faint)' }}>Days from creation to completion, lower is better</p>
         {withTurnaround.length === 0 ? (
           <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No completed tasks with creation dates</p>
         ) : (
@@ -453,7 +454,7 @@ function TabVelocity({ d, C, TT_STYLE }) {
         )}
       </Card>
 
-      <Card title="Task velocity — weekly completions per member">
+      <Card title="Task velocity: weekly completions per member">
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={velocity}>
             <CartesianGrid strokeDasharray="3 3" stroke={C.grid} />
@@ -532,11 +533,11 @@ function TabHubs({ d, C, TT_STYLE }) {
     <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {Object.entries(hubSummary).map(([hub, s]) => (
-          <Metric key={hub} label={`${hub} — tasks`} value={s.total} sub={`${s.members} members · ${s.overdue} overdue`} />
+          <Metric key={hub} label={`${hub} tasks`} value={s.total} sub={`${s.members} members · ${s.overdue} overdue`} />
         ))}
       </div>
 
-      <Card title="Weekly output — Dubai vs Lebanon">
+      <Card title="Weekly output: Dubai vs Lebanon">
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={hubWeekly}>
             <CartesianGrid strokeDasharray="3 3" stroke={C.grid} />
@@ -549,7 +550,7 @@ function TabHubs({ d, C, TT_STYLE }) {
         </ResponsiveContainer>
       </Card>
 
-      <Card title="Turnaround — hub comparison">
+      <Card title="Turnaround: hub comparison">
         <div className="space-y-2.5">
           {hubTurnaround.map(h => (
             <HBar key={h.hub} name={h.hub} value={h.avgDays} max={Math.max(...hubTurnaround.map(x => x.avgDays), 1)}
@@ -565,7 +566,7 @@ function TabProjects({ projects, funnel, C }) {
   const maxFunnel = funnel.length > 0 ? funnel[0].count : 1;
   return (
     <>
-      <Card title="Task stage funnel — all projects">
+      <Card title="Task stage funnel across all projects">
         <div className="space-y-2.5">
           {funnel.slice(0, 12).map(f => (<HBar key={f.name} name={f.name} value={f.count} max={maxFunnel} color={C.purple} />))}
         </div>
@@ -616,45 +617,82 @@ function TabTimeline({ d, C }) {
   const ganttEnd = ganttDates[ganttDates.length - 1] || ganttStart;
   const ganttRange = Math.max(1, Math.ceil((new Date(ganttEnd) - new Date(ganttStart)) / 86400000));
 
-  function getDayBg(day, intensity) {
+  // ── Improved heatmap colours for readability ─────────────
+  function getDayStyle(day, intensity) {
     if (theme === 'light') {
-      if (day.isWeekend) return '#f5f5f5';
-      if (day.isPast) return '#eeeeee';
-      if (day.count === 0) return '#fafafa';
-      const r = Math.round(220 - intensity * 180);
-      const g = Math.round(252 - intensity * 100);
-      const b = Math.round(231 - intensity * 130);
-      return `rgb(${r}, ${g}, ${b})`;
+      if (day.isWeekend) {
+        return { bg: '#f5f5f5', dayNum: '#a3a3a3', dayLabel: '#a3a3a3' };
+      }
+      if (day.isPast) {
+        return { bg: '#eeeeee', dayNum: '#a3a3a3', dayLabel: '#a3a3a3' };
+      }
+      if (day.count === 0) {
+        return { bg: '#ffffff', dayNum: '#262626', dayLabel: '#737373' };
+      }
+      // Active day with tasks: graduated green fills, white text on strong colours
+      if (intensity < 0.33) {
+        return { bg: '#d1fae5', dayNum: '#065f46', dayLabel: '#047857' };
+      } else if (intensity < 0.66) {
+        return { bg: '#10b981', dayNum: '#ffffff', dayLabel: '#d1fae5' };
+      } else {
+        return { bg: '#047857', dayNum: '#ffffff', dayLabel: '#a7f3d0' };
+      }
     } else {
-      if (day.isWeekend) return '#0e0e0e';
-      if (day.isPast) return '#181818';
-      if (day.count === 0) return '#141414';
-      const r = Math.round(29 + intensity * 100);
-      const g = Math.round(158 + intensity * (-60));
-      const b = Math.round(117 + intensity * (-40));
-      return `rgb(${r}, ${g}, ${b})`;
+      if (day.isWeekend) {
+        return { bg: '#0e0e0e', dayNum: '#404040', dayLabel: '#404040' };
+      }
+      if (day.isPast) {
+        return { bg: '#181818', dayNum: '#525252', dayLabel: '#525252' };
+      }
+      if (day.count === 0) {
+        return { bg: '#141414', dayNum: '#737373', dayLabel: '#525252' };
+      }
+      if (intensity < 0.33) {
+        return { bg: '#064e3b', dayNum: '#d1fae5', dayLabel: '#6ee7b7' };
+      } else if (intensity < 0.66) {
+        return { bg: '#059669', dayNum: '#ffffff', dayLabel: '#ecfdf5' };
+      } else {
+        return { bg: '#10b981', dayNum: '#ffffff', dayLabel: '#ffffff' };
+      }
     }
   }
 
   return (
     <>
-      <Card title="Workload heatmap — tasks due per day">
+      <Card title="Workload heatmap: tasks due per day">
+        <p className="text-[11px] mb-3" style={{ color: 'var(--text-faint)' }}>Darker green means more tasks due that day. Hover to see counts.</p>
         <div className="space-y-1">
           {weeks.map((week, wi) => (
             <div key={wi} className="flex gap-1">
               {week.map(day => {
                 const intensity = day.count / maxCount;
+                const style = getDayStyle(day, intensity);
                 return (
-                  <div key={day.date} title={`${day.date}: ${day.count} tasks`}
-                    className="flex-1 h-10 rounded flex flex-col items-center justify-center text-[9px]"
-                    style={{ background: getDayBg(day, intensity) }}>
-                    <span style={{ color: 'var(--text-faint)' }}>{day.dayName}</span>
-                    <span style={{ color: day.count > 0 ? (theme === 'light' ? '#171717' : '#fff') : 'var(--text-fainter)', fontWeight: day.count > 0 ? 500 : 400 }}>{day.day}</span>
+                  <div key={day.date} title={`${day.date}: ${day.count} ${day.count === 1 ? 'task' : 'tasks'} due`}
+                    className="flex-1 h-12 rounded flex flex-col items-center justify-center gap-0.5"
+                    style={{ background: style.bg }}>
+                    <span className="text-[9px] font-medium" style={{ color: style.dayLabel }}>{day.dayName}</span>
+                    <span className="text-[11px] font-semibold" style={{ color: style.dayNum }}>{day.day}</span>
+                    {day.count > 0 && (
+                      <span className="text-[9px] font-semibold" style={{ color: style.dayNum }}>{day.count}</span>
+                    )}
                   </div>
                 );
               })}
             </div>
           ))}
+        </div>
+        <div className="flex items-center gap-3 mt-4 text-[10px]" style={{ color: 'var(--text-faint)' }}>
+          <span>Intensity:</span>
+          <div className="flex gap-1">
+            <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#ffffff' : '#141414', border: '1px solid var(--border)' }} />
+            <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#d1fae5' : '#064e3b' }} />
+            <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#10b981' : '#059669' }} />
+            <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#047857' : '#10b981' }} />
+          </div>
+          <span>Low</span>
+          <span style={{ marginLeft: 'auto' }}>→</span>
+          <span>High</span>
         </div>
       </Card>
 
@@ -694,7 +732,7 @@ function TabRadar({ d, C }) {
   return (
     <>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Card title="Performance radar — Dubai">
+        <Card title="Performance radar: Dubai">
           {radarDubai.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <RadarChart data={radarDubai}>
@@ -707,7 +745,7 @@ function TabRadar({ d, C }) {
           ) : <p className="text-xs py-10 text-center" style={{ color: 'var(--text-faint)' }}>No Dubai members mapped</p>}
         </Card>
 
-        <Card title="Performance radar — Lebanon">
+        <Card title="Performance radar: Lebanon">
           {radarLebanon.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
               <RadarChart data={radarLebanon}>
@@ -760,7 +798,7 @@ function BreakdownBlock({ title, data, color, C }) {
   if (!data || data.length === 0) {
     return (
       <Card title={title}>
-        <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No data — ensure this custom field is populated in Asana</p>
+        <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No data, ensure this custom field is populated in Asana</p>
       </Card>
     );
   }
@@ -809,7 +847,7 @@ function TabMilestonesBlockers({ d }) {
     <>
       <Card title={`Upcoming milestones (${milestones.length})`}>
         {milestones.length === 0 ? (
-          <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No milestone tasks — mark tasks as milestones in Asana</p>
+          <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No milestone tasks. Mark tasks as milestones in Asana.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -835,7 +873,7 @@ function TabMilestonesBlockers({ d }) {
                       <td className="py-2.5 text-center">
                         <span className="inline-block px-2 py-0.5 rounded-full text-[10px]" style={statusStyle}>{m.status}</span>
                       </td>
-                      <td className="py-2.5 text-right" style={{ color: m.status === 'Overdue' ? C.red : 'var(--text-dim)' }}>{m.dueDate || '—'}</td>
+                      <td className="py-2.5 text-right" style={{ color: m.status === 'Overdue' ? C.red : 'var(--text-dim)' }}>{m.dueDate || ''}</td>
                     </tr>
                   );
                 })}
@@ -847,7 +885,7 @@ function TabMilestonesBlockers({ d }) {
 
       <Card title={`Blocked tasks (${blocked.length})`}>
         {blocked.length === 0 ? (
-          <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No blocked tasks — great flow!</p>
+          <p className="text-xs py-4 text-center" style={{ color: 'var(--text-faint)' }}>No blocked tasks, great flow!</p>
         ) : (
           <div className="space-y-3">
             {blocked.map((b, i) => (
@@ -855,7 +893,7 @@ function TabMilestonesBlockers({ d }) {
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex-1">
                     <TaskLink url={b.url}><span className="text-sm" style={{ color: 'var(--text)' }}>{b.name}</span></TaskLink>
-                    <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-faint)' }}>{b.assignee} · Due {b.dueDate || '—'}</p>
+                    <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-faint)' }}>{b.assignee} · Due {b.dueDate || 'not set'}</p>
                   </div>
                   <span className="text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap"
                     style={b.blockersResolved
@@ -884,11 +922,8 @@ function TabMilestonesBlockers({ d }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════
-// TAB 11: BUDGETS — sums of all number-type custom fields
-// ═══════════════════════════════════════════════════════════
 function formatCurrency(value) {
-  if (value === 0) return '—';
+  if (value === 0) return '0';
   return Math.round(value).toLocaleString('en-US');
 }
 

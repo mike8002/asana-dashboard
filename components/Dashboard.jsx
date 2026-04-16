@@ -189,7 +189,7 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
         style={{ borderBottom: '1px solid var(--border)', background: 'color-mix(in srgb, var(--bg) 95%, transparent)' }}>
         <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            <span className="text-base font-semibold tracking-tight" style={{ color: 'var(--text)' }}>Team Utilisation</span>
+            <img src="/um-logo.webp" alt="UM" className="h-6 w-auto" />             <span className="text-base font-semibold tracking-tight" style={{ color: 'var(--text)' }}>Team Utilisation</span>
             <span className="w-px h-4" style={{ background: 'var(--border-strong)' }}></span>
             <select value={activeClient.id} onChange={handleClientChange}
               className="rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none cursor-pointer"

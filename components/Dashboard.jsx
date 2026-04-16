@@ -164,7 +164,7 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
       hubTurnaround: getHubTurnaround(members),
       heatmap: getHeatmapData(data.tasks),
       gantt: getGanttData(data.tasks),
-      velocity: getVelocityData(members),
+      velocity: getVelocityData(members, data.tasks),
       radarDubai: getRadarScores(members, 'Dubai'),
       radarLebanon: getRadarScores(members, 'Lebanon'),
       composite: getCompositeScore(members),

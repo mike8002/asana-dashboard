@@ -11,7 +11,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════
-   THEME VARIABLES
+   THEME VARIABLES — VIBRANT MODERN PALETTE
    ═══════════════════════════════════════════════════════════ */
 
 /* Dark theme (default) */
@@ -32,35 +32,36 @@
   --text-faint: #525252;
   --text-fainter: #404040;
 
-  --accent-teal: #1D9E75;
-  --accent-teal-bg: rgb(6 78 59 / 0.5);
-  --accent-teal-text: #34d399;
-  --accent-teal-border: rgb(6 95 70 / 0.3);
+  /* Vibrant modern accents */
+  --accent-teal: #2dd4bf;
+  --accent-teal-bg: rgb(19 78 74 / 0.5);
+  --accent-teal-text: #5eead4;
+  --accent-teal-border: rgb(17 94 89 / 0.3);
 
-  --accent-blue: #378ADD;
+  --accent-blue: #60a5fa;
   --accent-blue-bg: rgb(30 58 138 / 0.5);
-  --accent-blue-text: #60a5fa;
+  --accent-blue-text: #93c5fd;
   --accent-blue-border: rgb(30 64 175 / 0.3);
 
-  --accent-red: #E24B4A;
-  --accent-red-bg: rgb(127 29 29 / 0.5);
-  --accent-red-text: #f87171;
-  --accent-red-border: rgb(153 27 27 / 0.3);
+  --accent-red: #f43f5e;
+  --accent-red-bg: rgb(136 19 55 / 0.5);
+  --accent-red-text: #fb7185;
+  --accent-red-border: rgb(159 18 57 / 0.3);
 
-  --accent-amber: #EF9F27;
-  --accent-amber-bg: rgb(120 53 15 / 0.5);
-  --accent-amber-text: #fbbf24;
-  --accent-amber-border: rgb(146 64 14 / 0.3);
+  --accent-amber: #fb923c;
+  --accent-amber-bg: rgb(124 45 18 / 0.5);
+  --accent-amber-text: #fdba74;
+  --accent-amber-border: rgb(154 52 18 / 0.3);
 
-  --accent-purple: #7F77DD;
-  --accent-pink: #D4537E;
-  --accent-gray: #555;
+  --accent-purple: #a78bfa;
+  --accent-pink: #f472b6;
+  --accent-gray: #737373;
 
   --chart-grid: #1c1c1c;
-  --chart-tick: #555;
+  --chart-tick: #525252;
   --chart-tooltip-bg: #1a1a1a;
   --chart-tooltip-border: #262626;
-  --chart-tooltip-text: #ccc;
+  --chart-tooltip-text: #e5e5e5;
 }
 
 /* Light theme */
@@ -80,28 +81,29 @@
   --text-faint: #a3a3a3;
   --text-fainter: #d4d4d4;
 
-  --accent-teal: #059669;
-  --accent-teal-bg: #d1fae5;
-  --accent-teal-text: #065f46;
-  --accent-teal-border: #a7f3d0;
+  /* Vibrant modern — light mode */
+  --accent-teal: #14b8a6;
+  --accent-teal-bg: #ccfbf1;
+  --accent-teal-text: #0f766e;
+  --accent-teal-border: #99f6e4;
 
-  --accent-blue: #2563eb;
+  --accent-blue: #3b82f6;
   --accent-blue-bg: #dbeafe;
-  --accent-blue-text: #1e40af;
+  --accent-blue-text: #1d4ed8;
   --accent-blue-border: #bfdbfe;
 
-  --accent-red: #dc2626;
-  --accent-red-bg: #fee2e2;
-  --accent-red-text: #991b1b;
-  --accent-red-border: #fecaca;
+  --accent-red: #e11d48;
+  --accent-red-bg: #ffe4e6;
+  --accent-red-text: #9f1239;
+  --accent-red-border: #fecdd3;
 
-  --accent-amber: #d97706;
-  --accent-amber-bg: #fef3c7;
-  --accent-amber-text: #92400e;
-  --accent-amber-border: #fde68a;
+  --accent-amber: #ea580c;
+  --accent-amber-bg: #ffedd5;
+  --accent-amber-text: #9a3412;
+  --accent-amber-border: #fed7aa;
 
-  --accent-purple: #7c3aed;
-  --accent-pink: #db2777;
+  --accent-purple: #8b5cf6;
+  --accent-pink: #ec4899;
   --accent-gray: #737373;
 
   --chart-grid: #e5e5e5;
@@ -119,7 +121,6 @@ body {
   transition: background 0.2s ease, color 0.2s ease;
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }

@@ -221,7 +221,7 @@ const INFO = {
   hubTurnaround: 'Average task turnaround per hub. Compare to see which hub ships faster.',
   funnel: 'Where incomplete work is stuck, by Asana section. Helps identify process bottlenecks — if one section is piled up, that stage is blocking flow.',
   projectHealth: 'Per-project health based on completion % and overdue rate.\n• Green: healthy pace\n• Amber: slipping\n• Red: seriously off track',
-  heatmap: 'Calendar view of tasks due per day. Darker cells = more tasks due that day. The scale is relative to the busiest day in view, so you can spot spikes at a glance without needing fixed thresholds. Past days and weekends are greyed.',
+  heatmap: 'Calendar view of tasks due per day. Darker cells = more tasks. The scale is absolute (not relative), so 1 task always looks the same regardless of busier days elsewhere. Colours progress through 5 volume buckets: 1, 2-3, 4-6, 7-10, 11+. Past days and weekends are greyed.',
   gantt: 'Timeline bars showing when tasks start and end. Blue = on track, red = overdue. Each row is one task, grouped by assignee.',
   radarDubai: 'Radar chart scoring Dubai hub across 5 dimensions (0-100):\n• Volume: output vs capacity\n• On-time: deadline reliability\n• Speed: turnaround time\n• Coverage: % tasks with due dates\n• Consistency: weekly output steadiness\n\nThe more filled-in the shape, the stronger the hub.',
   radarLebanon: 'Same five dimensions as Dubai, scored for Lebanon hub. Compare the two shapes side by side to see relative strengths.',
@@ -232,6 +232,48 @@ const INFO = {
   milestones: 'Tasks specifically flagged as milestones in Asana (key delivery points). Use this tab to prep for upcoming deliverables.',
   blocked: 'Tasks with dependencies that aren\'t yet complete. "Waiting" means blockers still open, "Ready to start" means all dependencies just cleared.',
   budgets: 'Auto-detects all numeric custom fields in Asana (like "Total Digital Budget"). Shows total committed, in-flight (incomplete), and spent (completed). Breaks budget down by brand, market, and campaign.',
+};
+
+// ═══════════════════════════════════════════════════════════
+// HEATMAP GRADIENT BUCKETS
+// Absolute scale — 1 task always shows as "level 1", regardless
+// of whether the busiest day has 2 tasks or 50. The top bucket
+// auto-expands if values exceed the default max.
+//
+// Buckets: 1, 2-3, 4-6, 7-10, 11+
+// ═══════════════════════════════════════════════════════════
+const HEATMAP_BUCKETS = [
+  { min: 1, max: 1, label: '1' },
+  { min: 2, max: 3, label: '2-3' },
+  { min: 4, max: 6, label: '4-6' },
+  { min: 7, max: 10, label: '7-10' },
+  { min: 11, max: Infinity, label: '11+' },
+];
+
+function getBucketIndex(count) {
+  if (count <= 0) return -1;
+  for (let i = 0; i < HEATMAP_BUCKETS.length; i++) {
+    if (count >= HEATMAP_BUCKETS[i].min && count <= HEATMAP_BUCKETS[i].max) return i;
+  }
+  return HEATMAP_BUCKETS.length - 1;
+}
+
+// Teal gradient swatches — 5 distinct steps for each bucket
+const HEATMAP_SWATCHES = {
+  light: [
+    { bg: '#ccfbf1', text: '#0f766e' },
+    { bg: '#99f6e4', text: '#0f766e' },
+    { bg: '#5eead4', text: '#134e4a' },
+    { bg: '#14b8a6', text: '#ffffff' },
+    { bg: '#0f766e', text: '#ffffff' },
+  ],
+  dark: [
+    { bg: '#134e4a', text: '#5eead4' },
+    { bg: '#115e59', text: '#99f6e4' },
+    { bg: '#0d9488', text: '#ffffff' },
+    { bg: '#14b8a6', text: '#ffffff' },
+    { bg: '#2dd4bf', text: '#0f172a' },
+  ],
 };
 
 export default function Dashboard({ data, error, userName, userImage, clients, activeClient }) {
@@ -793,9 +835,10 @@ function TabProjects({ projects, funnel, filteredFunnel, isFiltered, C }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// TIMELINE TAB — Neutral gradient heatmap
-// Darker = more tasks. Scale is relative to the busiest day
-// in the current view. No RAG judgement.
+// TIMELINE TAB — Absolute bucket-based heatmap
+// 1 task = lightest, 2-3 slightly darker, 4-6 mid, 7-10 dark,
+// 11+ = darkest. A day with 1 task looks the same whether the
+// busiest day is 2 or 200 — no more misleading scaling.
 // ═══════════════════════════════════════════════════════════
 function TabTimeline({ d, C }) {
   const { theme } = useTheme();
@@ -803,17 +846,15 @@ function TabTimeline({ d, C }) {
   const weeks = [];
   for (let i = 0; i < heatmap.length; i += 7) weeks.push(heatmap.slice(i, i + 7));
 
-  // Find the busiest day in view — the scale is relative to this
-  const activeCounts = heatmap.filter(d => !d.isPast && !d.isWeekend && d.count > 0).map(d => d.count);
-  const maxCount = activeCounts.length > 0 ? Math.max(...activeCounts) : 1;
-
   const ganttDates = gantt.flatMap(g => [g.start, g.end]).filter(Boolean).sort();
   const ganttStart = ganttDates[0] || new Date().toISOString().substring(0, 10);
   const ganttEnd = ganttDates[ganttDates.length - 1] || ganttStart;
   const ganttRange = Math.max(1, Math.ceil((new Date(ganttEnd) - new Date(ganttStart)) / 86400000));
 
+  const L = theme === 'light';
+  const swatches = HEATMAP_SWATCHES[L ? 'light' : 'dark'];
+
   function getDayStyle(day) {
-    const L = theme === 'light';
     if (day.isPast) return {
       bg: L ? '#f3f4f6' : '#1f1f1f',
       dayNum: L ? '#9ca3af' : '#525252',
@@ -833,42 +874,21 @@ function TabTimeline({ d, C }) {
       countColor: null,
     };
 
-    const intensity = day.count / maxCount;
-
-    if (L) {
-      // Light mode: white → deep teal gradient
-      const r = Math.round(255 - intensity * (255 - 15));
-      const g = Math.round(255 - intensity * (255 - 118));
-      const b = Math.round(255 - intensity * (255 - 110));
-      const textLight = intensity < 0.55;
-      return {
-        bg: `rgb(${r}, ${g}, ${b})`,
-        dayNum: textLight ? '#0f766e' : '#ffffff',
-        dayLabel: textLight ? '#0d9488' : '#ccfbf1',
-        countColor: textLight ? '#0f766e' : '#ffffff',
-      };
-    } else {
-      // Dark mode: near-black → bright teal gradient
-      const r = Math.round(20 + intensity * (45 - 20));
-      const g = Math.round(20 + intensity * (212 - 20));
-      const b = Math.round(20 + intensity * (191 - 20));
-      const textLight = intensity < 0.4;
-      return {
-        bg: `rgb(${r}, ${g}, ${b})`,
-        dayNum: textLight ? '#5eead4' : '#0f172a',
-        dayLabel: textLight ? '#2dd4bf' : '#134e4a',
-        countColor: textLight ? '#5eead4' : '#0f172a',
-      };
-    }
+    const idx = getBucketIndex(day.count);
+    const swatch = swatches[idx];
+    return {
+      bg: swatch.bg,
+      dayNum: swatch.text,
+      dayLabel: swatch.text,
+      countColor: swatch.text,
+    };
   }
-
-  const L = theme === 'light';
 
   return (
     <>
       <Card title="Workload heatmap: tasks due per day" info={INFO.heatmap}>
         <p className="text-[11px] mb-3" style={{ color: 'var(--text-faint)' }}>
-          Each cell is a day. Darker = more tasks due. Scale adjusts to the busiest day in view.
+          Each cell is a day. Colour intensity reflects actual task volume (not relative).
         </p>
         <div className="space-y-1">
           {weeks.map((week, wi) => (
@@ -880,7 +900,7 @@ function TabTimeline({ d, C }) {
                     title={`${day.date}: ${day.count} ${day.count === 1 ? 'task' : 'tasks'} due`}
                     className="flex-1 h-14 rounded flex flex-col items-center justify-center relative"
                     style={{ background: style.bg }}>
-                    <span className="text-[9px] font-medium leading-none mb-0.5" style={{ color: style.dayLabel }}>
+                    <span className="text-[9px] font-medium leading-none mb-0.5" style={{ color: style.dayLabel, opacity: 0.85 }}>
                       {day.dayName}
                     </span>
                     <span className="text-[13px] font-semibold leading-none" style={{ color: style.dayNum }}>
@@ -890,7 +910,7 @@ function TabTimeline({ d, C }) {
                       <span className="absolute top-1 right-1.5 text-[10px] font-bold px-1 rounded"
                         style={{
                           color: style.countColor,
-                          background: L ? 'rgba(255,255,255,.4)' : 'rgba(0,0,0,.2)',
+                          background: L ? 'rgba(255,255,255,.5)' : 'rgba(0,0,0,.25)',
                         }}>
                         {day.count}
                       </span>
@@ -902,33 +922,19 @@ function TabTimeline({ d, C }) {
           ))}
         </div>
 
-        {/* Gradient legend */}
+        {/* Bucket legend — shows actual thresholds */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-[10px]" style={{ color: 'var(--text-faint)' }}>
-          <span>Task volume:</span>
-          <span>Fewer</span>
-          <div className="flex gap-0.5 items-center">
-            {[0.1, 0.25, 0.5, 0.75, 1].map((intensity, i) => {
-              let bg;
-              if (L) {
-                const r = Math.round(255 - intensity * (255 - 15));
-                const g = Math.round(255 - intensity * (255 - 118));
-                const b = Math.round(255 - intensity * (255 - 110));
-                bg = `rgb(${r}, ${g}, ${b})`;
-              } else {
-                const r = Math.round(20 + intensity * (45 - 20));
-                const g = Math.round(20 + intensity * (212 - 20));
-                const b = Math.round(20 + intensity * (191 - 20));
-                bg = `rgb(${r}, ${g}, ${b})`;
-              }
-              return <div key={i} className="w-5 h-3 rounded-sm" style={{ background: bg, border: i === 0 && L ? '1px solid var(--border)' : 'none' }} />;
-            })}
-          </div>
-          <span>More</span>
-          {activeCounts.length > 0 && (
-            <span style={{ marginLeft: 8, color: 'var(--text-fainter)' }}>
-              Busiest day: {maxCount} {maxCount === 1 ? 'task' : 'tasks'}
+          <span>Tasks per day:</span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-4 h-3 rounded-sm" style={{ background: L ? '#ffffff' : '#141414', border: '1px solid var(--border)' }} />
+            0
+          </span>
+          {HEATMAP_BUCKETS.map((bucket, i) => (
+            <span key={i} className="flex items-center gap-1.5">
+              <span className="w-4 h-3 rounded-sm" style={{ background: swatches[i].bg }} />
+              {bucket.label}
             </span>
-          )}
+          ))}
           <span style={{ marginLeft: 'auto', color: 'var(--text-fainter)' }}>Grey = past or weekend</span>
         </div>
       </Card>

@@ -5,8 +5,13 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
       <div className="text-center">
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold tracking-tight mb-2" style={{ color: 'var(--text)' }}>
+        <div className="mb-10">
+          <img
+            src="/um-logo.webp"
+            alt="UM"
+            className="h-14 mx-auto mb-6"
+          />
+          <h1 className="text-2xl font-semibold tracking-tight mb-2" style={{ color: 'var(--text)' }}>
             Project Hub
           </h1>
           <p className="text-sm" style={{ color: 'var(--text-dim)' }}>

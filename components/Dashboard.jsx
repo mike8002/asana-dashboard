@@ -95,6 +95,17 @@ const TABS = [
 export default function Dashboard({ data, error, userName, userImage }) {
   const [tab, setTab] = useState(0);
   const [filter, setFilter] = useState('all');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetch('/api/refresh', { method: 'POST' });
+      window.location.reload();
+    } catch (e) {
+      setRefreshing(false);
+    }
+  };
 
   const processed = useMemo(() => {
     if (!data) return null;
@@ -152,6 +163,13 @@ export default function Dashboard({ data, error, userName, userImage }) {
               <option value="all">All members</option>
               {assignees.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="text-xs text-neutral-500 hover:text-white bg-[#141414] border border-[#262626] rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50"
+            >
+              {refreshing ? 'Refreshing…' : '↻ Refresh'}
+            </button>
             <div className="flex items-center gap-2">
               {userImage && <img src={userImage} alt="" className="w-6 h-6 rounded-full" />}
               <button onClick={() => signOut()} className="text-xs text-neutral-600 hover:text-neutral-400">Sign out</button>

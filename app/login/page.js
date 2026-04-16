@@ -3,22 +3,21 @@ import { signIn } from 'next-auth/react';
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a]">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
       <div className="text-center">
         <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-white tracking-tight mb-2">
+          <h1 className="text-3xl font-semibold tracking-tight mb-2" style={{ color: 'var(--text)' }}>
             Project Hub
           </h1>
-          <p className="text-sm text-neutral-500">
+          <p className="text-sm" style={{ color: 'var(--text-dim)' }}>
             UM MENAT — team dashboard
           </p>
         </div>
 
         <button
           onClick={() => signIn('google', { callbackUrl: '/' })}
-          className="inline-flex items-center gap-3 px-6 py-3 bg-white text-neutral-900
-                     rounded-lg font-medium text-sm hover:bg-neutral-100
-                     transition-colors cursor-pointer"
+          className="inline-flex items-center gap-3 px-6 py-3 rounded-lg font-medium text-sm transition-colors cursor-pointer"
+          style={{ background: 'var(--text)', color: 'var(--bg)' }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
@@ -29,7 +28,7 @@ export default function LoginPage() {
           Sign in with Google
         </button>
 
-        <p className="mt-6 text-xs text-neutral-600">
+        <p className="mt-6 text-xs" style={{ color: 'var(--text-faint)' }}>
           Access restricted to authorised team members
         </p>
       </div>

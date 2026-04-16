@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import {
@@ -36,11 +36,6 @@ function useChartColors() {
   };
 }
 
-// ═══════════════════════════════════════════════════════════
-// InfoTooltip — circular help icon that reveals explanatory
-// text on hover. Used throughout the dashboard to document
-// what each chart shows and how to read it.
-// ═══════════════════════════════════════════════════════════
 function InfoTooltip({ text }) {
   const [open, setOpen] = useState(false);
   return (
@@ -59,27 +54,20 @@ function InfoTooltip({ text }) {
           background: 'var(--surface-3)',
           border: '1px solid var(--border-strong)',
           color: 'var(--text-dim)',
-          fontSize: 9,
-          fontWeight: 600,
-          lineHeight: 1,
+          fontSize: 9, fontWeight: 600, lineHeight: 1,
         }}
       >?</button>
       {open && (
-        <span
-          role="tooltip"
+        <span role="tooltip"
           className="absolute z-50 p-3 rounded-lg text-xs leading-relaxed whitespace-pre-line"
           style={{
-            bottom: 'calc(100% + 6px)',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 260,
-            background: 'var(--surface)',
-            border: '1px solid var(--border-strong)',
+            bottom: 'calc(100% + 6px)', left: '50%',
+            transform: 'translateX(-50%)', width: 260,
+            background: 'var(--surface)', border: '1px solid var(--border-strong)',
             color: 'var(--text-muted)',
             boxShadow: '0 4px 16px rgba(0,0,0,.3)',
             pointerEvents: 'none',
-          }}
-        >
+          }}>
           {text}
         </span>
       )}
@@ -144,7 +132,6 @@ function TaskLink({ url, children }) {
 function ThemeToggle() {
   const { theme, toggleTheme, mounted } = useTheme();
   if (!mounted) return <div className="w-7 h-7" />;
-
   return (
     <button onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
       className="rounded-lg p-1.5 transition-colors"
@@ -163,6 +150,91 @@ function ThemeToggle() {
   );
 }
 
+// ═══════════════════════════════════════════════════════════
+// REFRESH BUTTON WITH COOLDOWN
+// Checks the /api/refresh GET endpoint on mount to see if
+// there's an active cooldown, displays countdown if so.
+// ═══════════════════════════════════════════════════════════
+function RefreshButton({ userName, selectStyle }) {
+  const [state, setState] = useState({ loading: true, locked: false, nextAvailable: null, lastRefreshedBy: null });
+  const [pressing, setPressing] = useState(false);
+  const [countdown, setCountdown] = useState('');
+
+  // Load cooldown state on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/refresh');
+        const data = await res.json();
+        setState({ loading: false, locked: data.locked, nextAvailable: data.nextAvailable, lastRefreshedBy: data.lastRefreshedBy });
+      } catch {
+        setState({ loading: false, locked: false, nextAvailable: null });
+      }
+    })();
+  }, []);
+
+  // Tick countdown every minute while locked
+  useEffect(() => {
+    if (!state.locked || !state.nextAvailable) { setCountdown(''); return; }
+    const update = () => {
+      const remaining = state.nextAvailable - Date.now();
+      if (remaining <= 0) {
+        setState(s => ({ ...s, locked: false, nextAvailable: null }));
+        return;
+      }
+      const hours = Math.floor(remaining / 3600000);
+      const mins = Math.floor((remaining % 3600000) / 60000);
+      setCountdown(hours > 0 ? `${hours}h ${mins}m` : `${mins}m`);
+    };
+    update();
+    const id = setInterval(update, 60000);
+    return () => clearInterval(id);
+  }, [state.locked, state.nextAvailable]);
+
+  const handleRefresh = async () => {
+    if (state.locked || pressing) return;
+    setPressing(true);
+    try {
+      const res = await fetch('/api/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userName }),
+      });
+      const data = await res.json();
+      if (res.status === 429) {
+        // someone else just beat us to it
+        setState({ loading: false, locked: true, nextAvailable: data.nextAvailable, lastRefreshedBy: data.lastRefreshedBy });
+        setPressing(false);
+      } else {
+        window.location.reload();
+      }
+    } catch (e) {
+      setPressing(false);
+    }
+  };
+
+  const disabled = state.loading || state.locked || pressing;
+  const label = pressing
+    ? 'Refreshing...'
+    : state.locked
+    ? `Next refresh in ${countdown}`
+    : '↻ Refresh';
+
+  const title = state.locked && state.lastRefreshedBy
+    ? `Last refreshed by ${state.lastRefreshedBy}. Cooldown ends in ${countdown}.`
+    : state.locked
+    ? `Refresh cooling down. Available in ${countdown}.`
+    : 'Refresh data from Asana';
+
+  return (
+    <button onClick={handleRefresh} disabled={disabled} title={title}
+      className="text-xs rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      style={selectStyle}>
+      {label}
+    </button>
+  );
+}
+
 const TABS = [
   'Overview', 'Backlog & Capacity', 'On-Time & Slippage',
   'Turnaround & Velocity', 'By Member', 'Dubai vs Lebanon',
@@ -170,10 +242,6 @@ const TABS = [
   'Breakdowns', 'Milestones & Blockers', 'Budgets',
 ];
 
-// ═══════════════════════════════════════════════════════════
-// INFO TEXT — descriptions for every chart, card, and metric.
-// Keep these short (2-3 sentences) and action-oriented.
-// ═══════════════════════════════════════════════════════════
 const INFO = {
   total: 'Every task and subtask across the selected client. Includes completed, in-progress, and overdue items.',
   completed: 'Tasks marked complete in Asana. Only counts tasks with a completion date.',
@@ -211,7 +279,6 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
   const C = useChartColors();
   const [tab, setTab] = useState(0);
   const [filter, setFilter] = useState('all');
-  const [refreshing, setRefreshing] = useState(false);
 
   const URGENCY_COLORS = { Overdue: C.red, 'Due soon': C.amber, Upcoming: C.blue, 'No date': C.gray };
   const TT_STYLE = {
@@ -219,17 +286,7 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
     cursor: { fill: 'rgba(128,128,128,.05)' },
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await fetch('/api/refresh', { method: 'POST' });
-      window.location.reload();
-    } catch (e) { setRefreshing(false); }
-  };
-
-  const handleClientChange = (e) => {
-    router.push(`/?client=${e.target.value}`);
-  };
+  const handleClientChange = (e) => { router.push(`/?client=${e.target.value}`); };
 
   const processed = useMemo(() => {
     if (!data) return null;
@@ -301,10 +358,7 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
               <option value="all">All members</option>
               {assignees.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
-            <button onClick={handleRefresh} disabled={refreshing}
-              className="text-xs rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50" style={selectStyle}>
-              {refreshing ? 'Refreshing...' : '↻ Refresh'}
-            </button>
+            <RefreshButton userName={userName} selectStyle={selectStyle} />
             <ThemeToggle />
             <div className="flex items-center gap-2">
               {userImage && <img src={userImage} alt="" className="w-6 h-6 rounded-full" />}
@@ -341,7 +395,7 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
         {tab === 11 && <TabBudgets d={processed} C={C} />}
 
         <p className="text-[11px] text-center pt-2 pb-4" style={{ color: 'var(--text-fainter)' }}>
-          {activeClient.name} · Last synced {new Date(data.fetchedAt).toLocaleString()} · Cache refreshes every 2 days
+          {activeClient.name} · Last synced {new Date(data.fetchedAt).toLocaleString()} · Refresh limited to once every 12 hours
         </p>
       </main>
     </div>

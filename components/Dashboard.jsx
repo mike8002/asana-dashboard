@@ -40,36 +40,21 @@ function InfoTooltip({ text }) {
   const [open, setOpen] = useState(false);
   return (
     <span className="relative inline-flex" style={{ marginLeft: 6 }}>
-      <button
-        type="button"
-        aria-label="What is this?"
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
+      <button type="button" aria-label="What is this?"
+        onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}
         onClick={() => setOpen(!open)}
         className="rounded-full flex items-center justify-center transition-colors cursor-help"
-        style={{
-          width: 14, height: 14,
-          background: 'var(--surface-3)',
-          border: '1px solid var(--border-strong)',
-          color: 'var(--text-dim)',
-          fontSize: 9, fontWeight: 600, lineHeight: 1,
-        }}
-      >?</button>
+        style={{ width: 14, height: 14, background: 'var(--surface-3)',
+          border: '1px solid var(--border-strong)', color: 'var(--text-dim)',
+          fontSize: 9, fontWeight: 600, lineHeight: 1 }}>?</button>
       {open && (
-        <span role="tooltip"
-          className="absolute z-50 p-3 rounded-lg text-xs leading-relaxed whitespace-pre-line"
-          style={{
-            bottom: 'calc(100% + 6px)', left: '50%',
+        <span role="tooltip" className="absolute z-50 p-3 rounded-lg text-xs leading-relaxed whitespace-pre-line"
+          style={{ bottom: 'calc(100% + 6px)', left: '50%',
             transform: 'translateX(-50%)', width: 260,
             background: 'var(--surface)', border: '1px solid var(--border-strong)',
-            color: 'var(--text-muted)',
-            boxShadow: '0 4px 16px rgba(0,0,0,.3)',
-            pointerEvents: 'none',
-          }}>
-          {text}
-        </span>
+            color: 'var(--text-muted)', boxShadow: '0 4px 16px rgba(0,0,0,.3)',
+            pointerEvents: 'none' }}>{text}</span>
       )}
     </span>
   );
@@ -171,10 +156,7 @@ function RefreshButton({ userName, selectStyle }) {
     if (!state.locked || !state.nextAvailable) { setCountdown(''); return; }
     const update = () => {
       const remaining = state.nextAvailable - Date.now();
-      if (remaining <= 0) {
-        setState(s => ({ ...s, locked: false, nextAvailable: null }));
-        return;
-      }
+      if (remaining <= 0) { setState(s => ({ ...s, locked: false, nextAvailable: null })); return; }
       const hours = Math.floor(remaining / 3600000);
       const mins = Math.floor((remaining % 3600000) / 60000);
       setCountdown(hours > 0 ? `${hours}h ${mins}m` : `${mins}m`);
@@ -189,41 +171,27 @@ function RefreshButton({ userName, selectStyle }) {
     setPressing(true);
     try {
       const res = await fetch('/api/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userName }),
       });
       const data = await res.json();
       if (res.status === 429) {
         setState({ loading: false, locked: true, nextAvailable: data.nextAvailable, lastRefreshedBy: data.lastRefreshedBy });
         setPressing(false);
-      } else {
-        window.location.reload();
-      }
-    } catch (e) {
-      setPressing(false);
-    }
+      } else { window.location.reload(); }
+    } catch (e) { setPressing(false); }
   };
 
   const disabled = state.loading || state.locked || pressing;
-  const label = pressing
-    ? 'Refreshing...'
-    : state.locked
-    ? `Next refresh in ${countdown}`
-    : '↻ Refresh';
-
+  const label = pressing ? 'Refreshing...' : state.locked ? `Next refresh in ${countdown}` : '↻ Refresh';
   const title = state.locked && state.lastRefreshedBy
     ? `Last refreshed by ${state.lastRefreshedBy}. Cooldown ends in ${countdown}.`
-    : state.locked
-    ? `Refresh cooling down. Available in ${countdown}.`
-    : 'Refresh data from Asana';
+    : state.locked ? `Refresh cooling down. Available in ${countdown}.` : 'Refresh data from Asana';
 
   return (
     <button onClick={handleRefresh} disabled={disabled} title={title}
       className="text-xs rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      style={selectStyle}>
-      {label}
-    </button>
+      style={selectStyle}>{label}</button>
   );
 }
 
@@ -253,7 +221,7 @@ const INFO = {
   hubTurnaround: 'Average task turnaround per hub. Compare to see which hub ships faster.',
   funnel: 'Where incomplete work is stuck, by Asana section. Helps identify process bottlenecks — if one section is piled up, that stage is blocking flow.',
   projectHealth: 'Per-project health based on completion % and overdue rate.\n• Green: healthy pace\n• Amber: slipping\n• Red: seriously off track',
-  heatmap: 'Calendar view of tasks due per day. Teal = upcoming tasks due. Darker teal = more tasks. Grey = past or weekend. Use this to spot workload spikes before they happen.',
+  heatmap: 'Calendar view of tasks due per day, colour-coded by workload pressure:\n• Green: 1-3 tasks (healthy)\n• Amber: 4-6 tasks (busy, watch capacity)\n• Red: 7+ tasks (overloaded, slippage risk)\n• Grey: past day or weekend\n\nUse this to spot workload spikes before they happen.',
   gantt: 'Timeline bars showing when tasks start and end. Blue = on track, red = overdue. Each row is one task, grouped by assignee.',
   radarDubai: 'Radar chart scoring Dubai hub across 5 dimensions (0-100):\n• Volume: output vs capacity\n• On-time: deadline reliability\n• Speed: turnaround time\n• Coverage: % tasks with due dates\n• Consistency: weekly output steadiness\n\nThe more filled-in the shape, the stronger the hub.',
   radarLebanon: 'Same five dimensions as Dubai, scored for Lebanon hub. Compare the two shapes side by side to see relative strengths.',
@@ -280,32 +248,18 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
 
   const handleClientChange = (e) => { router.push(`/?client=${e.target.value}`); };
 
-  // ═══════════════════════════════════════════════════════════
-  // FILTERED DATA — the key change.
-  // When a specific member is selected, we filter data.tasks
-  // BEFORE running all the aggregations. This means every chart
-  // automatically reflects the selected person's data.
-  // ═══════════════════════════════════════════════════════════
   const filteredData = useMemo(() => {
     if (!data) return null;
     if (filter === 'all') return data;
-    return {
-      ...data,
-      tasks: data.tasks.filter(t => t.assignee === filter),
-    };
+    return { ...data, tasks: data.tasks.filter(t => t.assignee === filter) };
   }, [data, filter]);
 
   const processed = useMemo(() => {
     if (!filteredData) return null;
-    // Note: memberStats uses the FILTERED tasks, so it only contains the selected person
     const members = getMemberStats(filteredData.tasks);
-    // BUT for the "By Member" tab and filter dropdown, we need the full unfiltered member list
     const allMembers = getMemberStats(data.tasks);
-
     return {
-      summary: getSummary(filteredData.tasks),
-      members,
-      allMembers,
+      summary: getSummary(filteredData.tasks), members, allMembers,
       timing: getTimingSplit(filteredData.tasks),
       weekly: getWeeklyTrend(filteredData.tasks),
       backlog: getBacklogTrend(filteredData.tasks),
@@ -395,12 +349,8 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
         </div>
       </nav>
 
-      {/* Filter banner — shown when a member is selected */}
       {isFiltered && (
-        <div className="px-4 py-2" style={{
-          background: 'var(--accent-blue-bg)',
-          borderBottom: '1px solid var(--accent-blue-border)',
-        }}>
+        <div className="px-4 py-2" style={{ background: 'var(--accent-blue-bg)', borderBottom: '1px solid var(--accent-blue-border)' }}>
           <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-3">
             <p className="text-xs" style={{ color: 'var(--accent-blue-text)' }}>
               <span style={{ fontWeight: 500 }}>Viewing data for {filter} only.</span>
@@ -408,11 +358,7 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
             </p>
             <button onClick={() => setFilter('all')}
               className="text-xs px-2 py-0.5 rounded-md transition-colors"
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border-strong)',
-                color: 'var(--text-muted)',
-              }}>
+              style={{ background: 'var(--surface)', border: '1px solid var(--border-strong)', color: 'var(--text-muted)' }}>
               Clear filter
             </button>
           </div>
@@ -441,7 +387,6 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
   );
 }
 
-// Helper to rebuild funnel from filtered tasks
 function buildFunnelFromTasks(tasks) {
   const map = {};
   tasks.forEach(t => {
@@ -492,7 +437,6 @@ function TabOverview({ d, C, URGENCY_COLORS, TT_STYLE, isFiltered }) {
           </Card>
         )}
 
-        {/* When filtered to one person, show their individual stats card instead */}
         {isFiltered && members[0] && (
           <Card title={`${members[0].name} overview`}>
             <div className="grid grid-cols-4 gap-2 text-center">
@@ -710,7 +654,6 @@ function TabVelocity({ d, C, TT_STYLE }) {
 }
 
 function TabMembers({ d }) {
-  // By Member tab always shows ALL members, regardless of filter
   const { allMembers } = d;
   const C = useChartColors();
   return (
@@ -849,10 +792,16 @@ function TabProjects({ projects, funnel, filteredFunnel, isFiltered, C }) {
   );
 }
 
+// ═══════════════════════════════════════════════════════════
+// TIMELINE TAB — Heatmap uses RAG thresholds, not relative intensity
+// Green: 1-3 tasks (healthy)
+// Amber: 4-6 tasks (busy)
+// Red:   7+ tasks (overloaded)
+// Grey:  past or weekend (no judgement)
+// ═══════════════════════════════════════════════════════════
 function TabTimeline({ d, C }) {
   const { theme } = useTheme();
   const { heatmap, gantt } = d;
-  const maxCount = Math.max(...heatmap.map(h => h.count), 1);
   const weeks = [];
   for (let i = 0; i < heatmap.length; i += 7) weeks.push(heatmap.slice(i, i + 7));
 
@@ -861,26 +810,70 @@ function TabTimeline({ d, C }) {
   const ganttEnd = ganttDates[ganttDates.length - 1] || ganttStart;
   const ganttRange = Math.max(1, Math.ceil((new Date(ganttEnd) - new Date(ganttStart)) / 86400000));
 
-  function getDayStyle(day, intensity) {
-    const L = theme === 'light';
-    if (day.isPast) return { bg: L ? '#f3f4f6' : '#1f1f1f', dayNum: L ? '#9ca3af' : '#525252', dayLabel: L ? '#9ca3af' : '#525252', countColor: null };
-    if (day.isWeekend) return { bg: L ? '#fafafa' : '#0e0e0e', dayNum: L ? '#9ca3af' : '#525252', dayLabel: L ? '#9ca3af' : '#525252', countColor: null };
-    if (day.count === 0) return { bg: L ? '#ffffff' : '#141414', dayNum: L ? '#374151' : '#a3a3a3', dayLabel: L ? '#9ca3af' : '#737373', countColor: null };
-    if (intensity < 0.33) return { bg: L ? '#ccfbf1' : '#134e4a', dayNum: L ? '#0f766e' : '#5eead4', dayLabel: L ? '#0d9488' : '#2dd4bf', countColor: L ? '#0f766e' : '#ccfbf1' };
-    if (intensity < 0.66) return { bg: L ? '#14b8a6' : '#0d9488', dayNum: '#ffffff', dayLabel: L ? '#ccfbf1' : '#ecfeff', countColor: '#ffffff' };
-    return { bg: L ? '#0f766e' : '#2dd4bf', dayNum: '#ffffff', dayLabel: L ? '#99f6e4' : '#ffffff', countColor: '#ffffff' };
+  // RAG thresholds for workload pressure
+  function getRagLevel(count) {
+    if (count === 0) return 'empty';
+    if (count <= 3) return 'green';
+    if (count <= 6) return 'amber';
+    return 'red';
   }
+
+  function getDayStyle(day) {
+    const L = theme === 'light';
+    if (day.isPast) return {
+      bg: L ? '#f3f4f6' : '#1f1f1f',
+      dayNum: L ? '#9ca3af' : '#525252',
+      dayLabel: L ? '#9ca3af' : '#525252',
+      countColor: null,
+    };
+    if (day.isWeekend) return {
+      bg: L ? '#fafafa' : '#0e0e0e',
+      dayNum: L ? '#9ca3af' : '#525252',
+      dayLabel: L ? '#9ca3af' : '#525252',
+      countColor: null,
+    };
+
+    const level = getRagLevel(day.count);
+    if (level === 'empty') return {
+      bg: L ? '#ffffff' : '#141414',
+      dayNum: L ? '#374151' : '#a3a3a3',
+      dayLabel: L ? '#9ca3af' : '#737373',
+      countColor: null,
+    };
+    if (level === 'green') return {
+      bg: L ? '#d1fae5' : '#065f46',
+      dayNum: L ? '#065f46' : '#a7f3d0',
+      dayLabel: L ? '#047857' : '#6ee7b7',
+      countColor: L ? '#065f46' : '#ffffff',
+    };
+    if (level === 'amber') return {
+      bg: L ? '#fed7aa' : '#7c2d12',
+      dayNum: L ? '#7c2d12' : '#fed7aa',
+      dayLabel: L ? '#9a3412' : '#fdba74',
+      countColor: L ? '#7c2d12' : '#ffffff',
+    };
+    // red
+    return {
+      bg: L ? '#fecaca' : '#7f1d1d',
+      dayNum: L ? '#7f1d1d' : '#fecaca',
+      dayLabel: L ? '#991b1b' : '#fca5a5',
+      countColor: L ? '#7f1d1d' : '#ffffff',
+    };
+  }
+
+  const L = theme === 'light';
 
   return (
     <>
       <Card title="Workload heatmap: tasks due per day" info={INFO.heatmap}>
-        <p className="text-[11px] mb-3" style={{ color: 'var(--text-faint)' }}>Each cell is a day. Teal = tasks due. Grey = past or weekend.</p>
+        <p className="text-[11px] mb-3" style={{ color: 'var(--text-faint)' }}>
+          Each cell is a day, colour-coded by workload pressure. Past days and weekends are greyed.
+        </p>
         <div className="space-y-1">
           {weeks.map((week, wi) => (
             <div key={wi} className="flex gap-1">
               {week.map(day => {
-                const intensity = day.count / maxCount;
-                const style = getDayStyle(day, intensity);
+                const style = getDayStyle(day);
                 return (
                   <div key={day.date}
                     title={`${day.date}: ${day.count} ${day.count === 1 ? 'task' : 'tasks'} due`}
@@ -907,17 +900,27 @@ function TabTimeline({ d, C }) {
             </div>
           ))}
         </div>
-        <div className="flex items-center gap-3 mt-4 text-[10px]" style={{ color: 'var(--text-faint)' }}>
-          <span>Task volume:</span>
-          <div className="flex gap-1 items-center">
-            <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#ffffff' : '#141414', border: '1px solid var(--border)' }} />
-            <span>None</span>
-            <div className="w-5 h-4 rounded ml-2" style={{ background: theme === 'light' ? '#ccfbf1' : '#134e4a' }} />
-            <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#14b8a6' : '#0d9488' }} />
-            <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#0f766e' : '#2dd4bf' }} />
-            <span>High</span>
-          </div>
-          <span style={{ marginLeft: 'auto' }}>Grey = past · faint = weekend</span>
+
+        {/* RAG legend */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-[10px]" style={{ color: 'var(--text-faint)' }}>
+          <span>Workload pressure:</span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-4 h-3 rounded" style={{ background: L ? '#ffffff' : '#141414', border: '1px solid var(--border)' }} />
+            None (0 tasks)
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-4 h-3 rounded" style={{ background: L ? '#d1fae5' : '#065f46' }} />
+            Healthy (1-3)
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-4 h-3 rounded" style={{ background: L ? '#fed7aa' : '#7c2d12' }} />
+            Busy (4-6)
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-4 h-3 rounded" style={{ background: L ? '#fecaca' : '#7f1d1d' }} />
+            Overloaded (7+)
+          </span>
+          <span style={{ marginLeft: 'auto', color: 'var(--text-fainter)' }}>Grey = past or weekend</span>
         </div>
       </Card>
 

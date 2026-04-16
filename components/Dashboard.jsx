@@ -21,18 +21,18 @@ import { useTheme } from './ThemeProvider';
 function useChartColors() {
   const { theme } = useTheme();
   return {
-    teal: theme === 'light' ? '#059669' : '#1D9E75',
-    blue: theme === 'light' ? '#2563eb' : '#378ADD',
-    red: theme === 'light' ? '#dc2626' : '#E24B4A',
-    purple: theme === 'light' ? '#7c3aed' : '#7F77DD',
-    amber: theme === 'light' ? '#d97706' : '#EF9F27',
-    pink: theme === 'light' ? '#db2777' : '#D4537E',
-    gray: theme === 'light' ? '#737373' : '#555',
+    teal: theme === 'light' ? '#14b8a6' : '#2dd4bf',
+    blue: theme === 'light' ? '#3b82f6' : '#60a5fa',
+    red: theme === 'light' ? '#e11d48' : '#f43f5e',
+    purple: theme === 'light' ? '#8b5cf6' : '#a78bfa',
+    amber: theme === 'light' ? '#ea580c' : '#fb923c',
+    pink: theme === 'light' ? '#ec4899' : '#f472b6',
+    gray: theme === 'light' ? '#737373' : '#525252',
     grid: theme === 'light' ? '#e5e5e5' : '#1c1c1c',
-    tick: theme === 'light' ? '#a3a3a3' : '#555',
+    tick: theme === 'light' ? '#a3a3a3' : '#525252',
     tooltipBg: theme === 'light' ? '#ffffff' : '#1a1a1a',
     tooltipBorder: theme === 'light' ? '#e5e5e5' : '#262626',
-    tooltipText: theme === 'light' ? '#171717' : '#ccc',
+    tooltipText: theme === 'light' ? '#171717' : '#e5e5e5',
   };
 }
 
@@ -611,75 +611,38 @@ function TabTimeline({ d, C }) {
   const maxCount = Math.max(...heatmap.map(h => h.count), 1);
   const weeks = [];
   for (let i = 0; i < heatmap.length; i += 7) weeks.push(heatmap.slice(i, i + 7));
- 
+
   const ganttDates = gantt.flatMap(g => [g.start, g.end]).filter(Boolean).sort();
   const ganttStart = ganttDates[0] || new Date().toISOString().substring(0, 10);
   const ganttEnd = ganttDates[ganttDates.length - 1] || ganttStart;
   const ganttRange = Math.max(1, Math.ceil((new Date(ganttEnd) - new Date(ganttStart)) / 86400000));
- 
-  // ── Heatmap cell styling ─────────────────────────────────
+
   function getDayStyle(day, intensity) {
     const L = theme === 'light';
- 
-    // Past days: always muted, regardless of tasks
+
     if (day.isPast) {
-      return {
-        bg: L ? '#f3f4f6' : '#1f1f1f',
-        dayNum: L ? '#9ca3af' : '#525252',
-        dayLabel: L ? '#9ca3af' : '#525252',
-        countColor: null,
-      };
+      return { bg: L ? '#f3f4f6' : '#1f1f1f', dayNum: L ? '#9ca3af' : '#525252', dayLabel: L ? '#9ca3af' : '#525252', countColor: null };
     }
- 
-    // Weekends: slightly different tint
     if (day.isWeekend) {
-      return {
-        bg: L ? '#fafafa' : '#0e0e0e',
-        dayNum: L ? '#9ca3af' : '#525252',
-        dayLabel: L ? '#9ca3af' : '#525252',
-        countColor: null,
-      };
+      return { bg: L ? '#fafafa' : '#0e0e0e', dayNum: L ? '#9ca3af' : '#525252', dayLabel: L ? '#9ca3af' : '#525252', countColor: null };
     }
- 
-    // Future weekday with zero tasks
     if (day.count === 0) {
-      return {
-        bg: L ? '#ffffff' : '#141414',
-        dayNum: L ? '#374151' : '#a3a3a3',
-        dayLabel: L ? '#9ca3af' : '#737373',
-        countColor: null,
-      };
+      return { bg: L ? '#ffffff' : '#141414', dayNum: L ? '#374151' : '#a3a3a3', dayLabel: L ? '#9ca3af' : '#737373', countColor: null };
     }
- 
-    // Future weekday with tasks: graduated green
+    // Vibrant modern teal/mint gradient for active days
     if (intensity < 0.33) {
-      return {
-        bg: L ? '#d1fae5' : '#064e3b',
-        dayNum: L ? '#065f46' : '#d1fae5',
-        dayLabel: L ? '#047857' : '#6ee7b7',
-        countColor: L ? '#047857' : '#d1fae5',
-      };
+      return { bg: L ? '#ccfbf1' : '#134e4a', dayNum: L ? '#0f766e' : '#5eead4', dayLabel: L ? '#0d9488' : '#2dd4bf', countColor: L ? '#0f766e' : '#ccfbf1' };
     } else if (intensity < 0.66) {
-      return {
-        bg: L ? '#10b981' : '#059669',
-        dayNum: '#ffffff',
-        dayLabel: L ? '#d1fae5' : '#ecfdf5',
-        countColor: '#ffffff',
-      };
+      return { bg: L ? '#14b8a6' : '#0d9488', dayNum: '#ffffff', dayLabel: L ? '#ccfbf1' : '#ecfeff', countColor: '#ffffff' };
     } else {
-      return {
-        bg: L ? '#047857' : '#10b981',
-        dayNum: '#ffffff',
-        dayLabel: L ? '#a7f3d0' : '#ffffff',
-        countColor: '#ffffff',
-      };
+      return { bg: L ? '#0f766e' : '#2dd4bf', dayNum: '#ffffff', dayLabel: L ? '#99f6e4' : '#ffffff', countColor: '#ffffff' };
     }
   }
- 
+
   return (
     <>
       <Card title="Workload heatmap: tasks due per day">
-        <p className="text-[11px] mb-3" style={{ color: 'var(--text-faint)' }}>Each cell is a day. Green = tasks due. Grey = past or weekend.</p>
+        <p className="text-[11px] mb-3" style={{ color: 'var(--text-faint)' }}>Each cell is a day. Teal = tasks due. Grey = past or weekend.</p>
         <div className="space-y-1">
           {weeks.map((week, wi) => (
             <div key={wi} className="flex gap-1">
@@ -717,15 +680,15 @@ function TabTimeline({ d, C }) {
           <div className="flex gap-1 items-center">
             <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#ffffff' : '#141414', border: '1px solid var(--border)' }} />
             <span>None</span>
-            <div className="w-5 h-4 rounded ml-2" style={{ background: theme === 'light' ? '#d1fae5' : '#064e3b' }} />
-            <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#10b981' : '#059669' }} />
-            <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#047857' : '#10b981' }} />
+            <div className="w-5 h-4 rounded ml-2" style={{ background: theme === 'light' ? '#ccfbf1' : '#134e4a' }} />
+            <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#14b8a6' : '#0d9488' }} />
+            <div className="w-5 h-4 rounded" style={{ background: theme === 'light' ? '#0f766e' : '#2dd4bf' }} />
             <span>High</span>
           </div>
           <span style={{ marginLeft: 'auto' }}>Grey = past · faint = weekend</span>
         </div>
       </Card>
- 
+
       <Card title="Gantt-style task timeline">
         <div className="space-y-1.5">
           {gantt.map((g, i) => {
@@ -734,7 +697,7 @@ function TabTimeline({ d, C }) {
             const left = (startOffset / ganttRange) * 100;
             const width = Math.max(2, (duration / ganttRange) * 100);
             const color = g.status === 'Overdue' ? C.red : C.blue;
- 
+
             const Bar = (
               <div className="flex-1 relative h-5 rounded" style={{ background: 'var(--surface-4)' }}>
                 <div className="absolute h-full rounded flex items-center px-1.5"
@@ -743,7 +706,7 @@ function TabTimeline({ d, C }) {
                 </div>
               </div>
             );
- 
+
             return (
               <div key={i} className="flex items-center gap-2">
                 <span className="text-[10px] w-20 text-right truncate" style={{ color: 'var(--text-faint)' }}>{g.assignee}</span>

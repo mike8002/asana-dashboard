@@ -13,12 +13,11 @@ import {
   getProjectHealth, getHeatmapData, getGanttData, getVelocityData,
   getRadarScores, getCompositeScore,
   getBrandBreakdown, getMarketBreakdown, getCampaignBreakdown,
-  getMilestones, getBlockedTasks,
+  getMilestones, getBlockedTasks, getBudgetSummaries,
 } from '../lib/process';
 import { WEEKLY_CAPACITY } from '../lib/config';
 import { useTheme } from './ThemeProvider';
 
-// Chart colors — these switch based on theme
 function useChartColors() {
   const { theme } = useTheme();
   return {
@@ -39,10 +38,7 @@ function useChartColors() {
 
 function Card({ title, children, className = '' }) {
   return (
-    <div
-      className={`rounded-xl p-5 ${className}`}
-      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-    >
+    <div className={`rounded-xl p-5 ${className}`} style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
       {title && <h3 className="text-sm font-medium mb-4" style={{ color: 'var(--text-muted)' }}>{title}</h3>}
       {children}
     </div>
@@ -65,7 +61,7 @@ function RagDot({ level }) {
   return <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: colors[level] }} />;
 }
 
-function HBar({ name, value, max, color, suffix = '' }) {
+function HBar({ name, value, max, color, suffix = '', displayValue }) {
   const C = useChartColors();
   const pct = max > 0 ? (value / max) * 100 : 0;
   return (
@@ -74,7 +70,7 @@ function HBar({ name, value, max, color, suffix = '' }) {
       <div className="flex-1 rounded h-4 overflow-hidden" style={{ background: 'var(--surface-3)' }}>
         <div className="h-full rounded" style={{ width: `${pct}%`, background: color || C.purple, transition: 'width .4s' }} />
       </div>
-      <span className="text-xs w-12 text-right" style={{ color: 'var(--text-dim)' }}>{value}{suffix}</span>
+      <span className="text-xs w-16 text-right" style={{ color: 'var(--text-dim)' }}>{displayValue !== undefined ? displayValue : value}{suffix}</span>
     </div>
   );
 }
@@ -82,35 +78,24 @@ function HBar({ name, value, max, color, suffix = '' }) {
 function TaskLink({ url, children }) {
   if (!url) return <span>{children}</span>;
   return (
-    <a href={url} target="_blank" rel="noopener noreferrer" className="hover:underline"
-       style={{ color: 'var(--text)' }}>{children}</a>
+    <a href={url} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: 'var(--text)' }}>{children}</a>
   );
 }
 
-// Theme toggle icon button
 function ThemeToggle() {
   const { theme, toggleTheme, mounted } = useTheme();
-  if (!mounted) return <div className="w-7 h-7" />; // prevent layout shift
+  if (!mounted) return <div className="w-7 h-7" />;
 
   return (
-    <button
-      onClick={toggleTheme}
-      aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+    <button onClick={toggleTheme} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
       className="rounded-lg p-1.5 transition-colors"
-      style={{
-        background: 'var(--surface-2)',
-        border: '1px solid var(--border-strong)',
-        color: 'var(--text-dim)',
-      }}
-    >
+      style={{ background: 'var(--surface-2)', border: '1px solid var(--border-strong)', color: 'var(--text-dim)' }}>
       {theme === 'dark' ? (
-        // Sun icon
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="4"/>
           <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
         </svg>
       ) : (
-        // Moon icon
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
         </svg>
@@ -123,7 +108,7 @@ const TABS = [
   'Overview', 'Backlog & Capacity', 'On-Time & Slippage',
   'Turnaround & Velocity', 'By Member', 'Dubai vs Lebanon',
   'Projects & Funnel', 'Timeline & Heatmap', 'Performance Radar',
-  'Breakdowns', 'Milestones & Blockers',
+  'Breakdowns', 'Milestones & Blockers', 'Budgets',
 ];
 
 export default function Dashboard({ data, error, userName, userImage, clients, activeClient }) {
@@ -173,6 +158,7 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
       campaigns: getCampaignBreakdown(data.tasks),
       milestones: getMilestones(data.tasks),
       blocked: getBlockedTasks(data.tasks),
+      budgets: getBudgetSummaries(data.tasks, data.numberFieldNames),
     };
   }, [data]);
 
@@ -195,67 +181,47 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
   const assignees = members.map(m => m.name).filter(n => n !== 'Unassigned');
   const filteredTasks = filter === 'all' ? data.tasks : data.tasks.filter(t => t.assignee === filter);
 
-  const selectStyle = {
-    background: 'var(--surface-2)',
-    border: '1px solid var(--border-strong)',
-    color: 'var(--text-muted)',
-  };
+  const selectStyle = { background: 'var(--surface-2)', border: '1px solid var(--border-strong)', color: 'var(--text-muted)' };
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
-      {/* Header */}
       <header className="px-4 py-3 sticky top-0 z-30 backdrop-blur"
-        style={{
-          borderBottom: '1px solid var(--border)',
-          background: 'color-mix(in srgb, var(--bg) 95%, transparent)',
-        }}>
+        style={{ borderBottom: '1px solid var(--border)', background: 'color-mix(in srgb, var(--bg) 95%, transparent)' }}>
         <div className="max-w-[1400px] mx-auto flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <span className="text-base font-semibold tracking-tight" style={{ color: 'var(--text)' }}>Team Utilisation</span>
             <span className="w-px h-4" style={{ background: 'var(--border-strong)' }}></span>
-            <select
-              value={activeClient.id}
-              onChange={handleClientChange}
+            <select value={activeClient.id} onChange={handleClientChange}
               className="rounded-lg px-3 py-1.5 text-xs font-medium focus:outline-none cursor-pointer"
-              style={{ ...selectStyle, color: 'var(--text)' }}
-            >
-              {clients.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
+              style={{ ...selectStyle, color: 'var(--text)' }}>
+              {clients.map(c => (<option key={c.id} value={c.id}>{c.name}</option>))}
             </select>
             <span className="text-[10px] px-2 py-0.5 rounded-full"
-              style={{ background: 'var(--accent-teal-bg)', color: 'var(--accent-teal-text)', border: '1px solid var(--accent-teal-border)' }}>
-              Live
-            </span>
+              style={{ background: 'var(--accent-teal-bg)', color: 'var(--accent-teal-text)', border: '1px solid var(--accent-teal-border)' }}>Live</span>
           </div>
           <div className="flex items-center gap-3">
             <select value={filter} onChange={e => setFilter(e.target.value)}
-              className="rounded-lg px-3 py-1.5 text-xs focus:outline-none"
-              style={selectStyle}>
+              className="rounded-lg px-3 py-1.5 text-xs focus:outline-none" style={selectStyle}>
               <option value="all">All members</option>
               {assignees.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
             <button onClick={handleRefresh} disabled={refreshing}
-              className="text-xs rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50"
-              style={selectStyle}>
+              className="text-xs rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50" style={selectStyle}>
               {refreshing ? 'Refreshing…' : '↻ Refresh'}
             </button>
             <ThemeToggle />
             <div className="flex items-center gap-2">
               {userImage && <img src={userImage} alt="" className="w-6 h-6 rounded-full" />}
-              <button onClick={() => signOut()} className="text-xs transition-colors"
-                style={{ color: 'var(--text-faint)' }}>Sign out</button>
+              <button onClick={() => signOut()} className="text-xs transition-colors" style={{ color: 'var(--text-faint)' }}>Sign out</button>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Tabs */}
       <nav className="px-4 overflow-x-auto" style={{ borderBottom: '1px solid var(--border)' }}>
         <div className="max-w-[1400px] mx-auto flex gap-0">
           {TABS.map((t, i) => (
-            <button key={t} onClick={() => setTab(i)}
-              className="px-4 py-2.5 text-xs whitespace-nowrap transition-colors"
+            <button key={t} onClick={() => setTab(i)} className="px-4 py-2.5 text-xs whitespace-nowrap transition-colors"
               style={{
                 borderBottom: tab === i ? '2px solid var(--text)' : '2px solid transparent',
                 color: tab === i ? 'var(--text)' : 'var(--text-faint)',
@@ -276,6 +242,7 @@ export default function Dashboard({ data, error, userName, userImage, clients, a
         {tab === 8 && <TabRadar d={processed} C={C} />}
         {tab === 9 && <TabBreakdowns d={processed} C={C} />}
         {tab === 10 && <TabMilestonesBlockers d={processed} />}
+        {tab === 11 && <TabBudgets d={processed} C={C} />}
 
         <p className="text-[11px] text-center pt-2 pb-4" style={{ color: 'var(--text-fainter)' }}>
           {activeClient.name} · Last synced {new Date(data.fetchedAt).toLocaleString()} · Cache refreshes every 2 days
@@ -317,9 +284,7 @@ function TabOverview({ d, tasks, C, URGENCY_COLORS, TT_STYLE }) {
             })}
             <div className="flex gap-4 mt-3 text-[10px]" style={{ color: 'var(--text-faint)' }}>
               {Object.entries(URGENCY_COLORS).map(([k, c]) => (
-                <span key={k} className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-sm" style={{ background: c }} />{k}
-                </span>
+                <span key={k} className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm" style={{ background: c }} />{k}</span>
               ))}
             </div>
           </div>
@@ -329,8 +294,7 @@ function TabOverview({ d, tasks, C, URGENCY_COLORS, TT_STYLE }) {
           <div className="flex items-center justify-center gap-6">
             <ResponsiveContainer width={150} height={150}>
               <PieChart>
-                <Pie data={timing} cx="50%" cy="50%" innerRadius={40} outerRadius={65}
-                  paddingAngle={2} dataKey="value" stroke="none">
+                <Pie data={timing} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={2} dataKey="value" stroke="none">
                   {timing.map(e => <Cell key={e.name} fill={URGENCY_COLORS[e.name] || C.gray} />)}
                 </Pie>
                 <Tooltip {...TT_STYLE} />
@@ -339,8 +303,7 @@ function TabOverview({ d, tasks, C, URGENCY_COLORS, TT_STYLE }) {
             <div className="space-y-2 text-xs" style={{ color: 'var(--text-dim)' }}>
               {timing.map(e => (
                 <div key={e.name} className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: URGENCY_COLORS[e.name] }} />
-                  {e.name} ({e.value})
+                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: URGENCY_COLORS[e.name] }} />{e.name} ({e.value})
                 </div>
               ))}
             </div>
@@ -405,10 +368,8 @@ function TabBacklog({ d, C, TT_STYLE }) {
           <div className="flex items-center justify-center gap-6">
             <ResponsiveContainer width={150} height={150}>
               <PieChart>
-                <Pie data={subtaskSplit} cx="50%" cy="50%" innerRadius={40} outerRadius={65}
-                  paddingAngle={2} dataKey="value" stroke="none">
-                  <Cell fill={C.purple} />
-                  <Cell fill={C.blue} />
+                <Pie data={subtaskSplit} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={2} dataKey="value" stroke="none">
+                  <Cell fill={C.purple} /><Cell fill={C.blue} />
                 </Pie>
                 <Tooltip {...TT_STYLE} />
               </PieChart>
@@ -416,8 +377,7 @@ function TabBacklog({ d, C, TT_STYLE }) {
             <div className="space-y-2 text-xs" style={{ color: 'var(--text-dim)' }}>
               {subtaskSplit.map((e, i) => (
                 <div key={e.name} className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: i === 0 ? C.purple : C.blue }} />
-                  {e.name} ({e.value})
+                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: i === 0 ? C.purple : C.blue }} />{e.name} ({e.value})
                 </div>
               ))}
             </div>
@@ -501,8 +461,7 @@ function TabVelocity({ d, C, TT_STYLE }) {
             <YAxis tick={{ fill: C.tick, fontSize: 11 }} />
             <Tooltip {...TT_STYLE} />
             {memberNames.map((name, i) => (
-              <Line key={name} type="monotone" dataKey={name} stroke={lineColors[i % lineColors.length]}
-                strokeWidth={1.5} dot={false} />
+              <Line key={name} type="monotone" dataKey={name} stroke={lineColors[i % lineColors.length]} strokeWidth={1.5} dot={false} />
             ))}
           </LineChart>
         </ResponsiveContainer>
@@ -546,21 +505,11 @@ function TabMembers({ d }) {
             {m.onTimeRate !== null && (
               <div className="flex justify-between">
                 <span>On-time rate</span>
-                <span style={{ color: m.onTimeRate >= 85 ? C.teal : m.onTimeRate >= 75 ? C.amber : C.red }}>
-                  {m.onTimeRate}%
-                </span>
+                <span style={{ color: m.onTimeRate >= 85 ? C.teal : m.onTimeRate >= 75 ? C.amber : C.red }}>{m.onTimeRate}%</span>
               </div>
             )}
-            {m.avgTurnaround && (
-              <div className="flex justify-between">
-                <span>Avg turnaround</span><span>{m.avgTurnaround} days</span>
-              </div>
-            )}
-            {m.hours > 0 && (
-              <div className="flex justify-between">
-                <span>Hours logged</span><span>{m.hours}h</span>
-              </div>
-            )}
+            {m.avgTurnaround && (<div className="flex justify-between"><span>Avg turnaround</span><span>{m.avgTurnaround} days</span></div>)}
+            {m.hours > 0 && (<div className="flex justify-between"><span>Hours logged</span><span>{m.hours}h</span></div>)}
           </div>
         </Card>
       ))}
@@ -603,8 +552,7 @@ function TabHubs({ d, C, TT_STYLE }) {
       <Card title="Turnaround — hub comparison">
         <div className="space-y-2.5">
           {hubTurnaround.map(h => (
-            <HBar key={h.hub} name={h.hub} value={h.avgDays}
-              max={Math.max(...hubTurnaround.map(x => x.avgDays), 1)}
+            <HBar key={h.hub} name={h.hub} value={h.avgDays} max={Math.max(...hubTurnaround.map(x => x.avgDays), 1)}
               color={h.hub === 'Dubai' ? C.blue : C.amber} suffix=" days" />
           ))}
         </div>
@@ -619,9 +567,7 @@ function TabProjects({ projects, funnel, C }) {
     <>
       <Card title="Task stage funnel — all projects">
         <div className="space-y-2.5">
-          {funnel.slice(0, 12).map(f => (
-            <HBar key={f.name} name={f.name} value={f.count} max={maxFunnel} color={C.purple} />
-          ))}
+          {funnel.slice(0, 12).map(f => (<HBar key={f.name} name={f.name} value={f.count} max={maxFunnel} color={C.purple} />))}
         </div>
       </Card>
 
@@ -670,7 +616,6 @@ function TabTimeline({ d, C }) {
   const ganttEnd = ganttDates[ganttDates.length - 1] || ganttStart;
   const ganttRange = Math.max(1, Math.ceil((new Date(ganttEnd) - new Date(ganttStart)) / 86400000));
 
-  // Heatmap colours differ by theme
   function getDayBg(day, intensity) {
     if (theme === 'light') {
       if (day.isWeekend) return '#f5f5f5';
@@ -796,13 +741,9 @@ function TabRadar({ d, C }) {
                 return (
                   <tr key={c.hub} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td className="py-2.5 font-medium" style={{ color: 'var(--text)' }}>{c.hub}</td>
-                    {c.scores.map(s => (
-                      <td key={s.metric} className="py-2.5 text-center" style={{ color: 'var(--text-muted)' }}>{s.score}</td>
-                    ))}
+                    {c.scores.map(s => (<td key={s.metric} className="py-2.5 text-center" style={{ color: 'var(--text-muted)' }}>{s.score}</td>))}
                     <td className="py-2.5 text-center font-medium">
-                      <span className="inline-flex items-center gap-1.5">
-                        <RagDot level={rag} />{c.composite}
-                      </span>
+                      <span className="inline-flex items-center gap-1.5"><RagDot level={rag} />{c.composite}</span>
                     </td>
                   </tr>
                 );
@@ -894,9 +835,7 @@ function TabMilestonesBlockers({ d }) {
                       <td className="py-2.5 text-center">
                         <span className="inline-block px-2 py-0.5 rounded-full text-[10px]" style={statusStyle}>{m.status}</span>
                       </td>
-                      <td className="py-2.5 text-right" style={{ color: m.status === 'Overdue' ? C.red : 'var(--text-dim)' }}>
-                        {m.dueDate || '—'}
-                      </td>
+                      <td className="py-2.5 text-right" style={{ color: m.status === 'Overdue' ? C.red : 'var(--text-dim)' }}>{m.dueDate || '—'}</td>
                     </tr>
                   );
                 })}
@@ -931,10 +870,7 @@ function TabMilestonesBlockers({ d }) {
                     <div key={j} className="flex items-center gap-2 text-[11px]">
                       <span style={{ color: blk.completed ? C.teal : 'var(--text-dim)' }}>{blk.completed ? '✓' : '○'}</span>
                       <TaskLink url={blk.url}>
-                        <span style={{
-                          color: blk.completed ? 'var(--text-dim)' : 'var(--text-muted)',
-                          textDecoration: blk.completed ? 'line-through' : 'none',
-                        }}>{blk.name}</span>
+                        <span style={{ color: blk.completed ? 'var(--text-dim)' : 'var(--text-muted)', textDecoration: blk.completed ? 'line-through' : 'none' }}>{blk.name}</span>
                       </TaskLink>
                     </div>
                   ))}
@@ -945,5 +881,76 @@ function TabMilestonesBlockers({ d }) {
         )}
       </Card>
     </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAB 11: BUDGETS — sums of all number-type custom fields
+// ═══════════════════════════════════════════════════════════
+function formatCurrency(value) {
+  if (value === 0) return '—';
+  return Math.round(value).toLocaleString('en-US');
+}
+
+function BudgetBreakdown({ title, items, color }) {
+  if (!items || items.length === 0) return null;
+  const max = items[0]?.value || 1;
+  return (
+    <Card title={title}>
+      <div className="space-y-2">
+        {items.slice(0, 8).map(item => {
+          const pct = (item.value / max) * 100;
+          return (
+            <div key={item.name} className="flex items-center gap-2.5">
+              <span className="text-xs w-24 text-right truncate" style={{ color: 'var(--text-dim)' }}>{item.name}</span>
+              <div className="flex-1 rounded h-4 overflow-hidden" style={{ background: 'var(--surface-3)' }}>
+                <div className="h-full rounded" style={{ width: `${pct}%`, background: color, transition: 'width .4s' }} />
+              </div>
+              <span className="text-xs w-20 text-right" style={{ color: 'var(--text-dim)' }}>{formatCurrency(item.value)}</span>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function TabBudgets({ d, C }) {
+  const { budgets } = d;
+
+  if (!budgets || budgets.length === 0) {
+    return (
+      <Card>
+        <p className="text-xs py-8 text-center" style={{ color: 'var(--text-faint)' }}>
+          No number-type custom fields detected in your Asana project.<br />
+          Add numeric fields (like &ldquo;Total Digital Budget&rdquo; or &ldquo;Fees&rdquo;) to tasks to track them here.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {budgets.map(b => (
+        <div key={b.field} className="space-y-3">
+          <h2 className="text-sm font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+            {b.field}
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Metric label="Total" value={formatCurrency(b.total)} />
+            <Metric label="In-flight (incomplete)" value={formatCurrency(b.inFlight)} color={C.blue} />
+            <Metric label="Spent (completed)" value={formatCurrency(b.spent)} color={C.teal} />
+          </div>
+
+          {(b.byBrand.length > 0 || b.byMarket.length > 0 || b.byCampaign.length > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <BudgetBreakdown title="By brand" items={b.byBrand} color={C.purple} />
+              <BudgetBreakdown title="By market" items={b.byMarket} color={C.blue} />
+              <BudgetBreakdown title="By campaign" items={b.byCampaign} color={C.amber} />
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
